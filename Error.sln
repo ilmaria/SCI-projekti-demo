@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010 Express for Windows Phone
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Error", "Error\Error\Error.csproj", "{F27456E6-8980-47B3-983E-B8DAA71B338D}"
+EndProject
+Project("{96E2B04D-8817-42C6-938A-82C39BA4D311}") = "ErrorContent", "Error\ErrorContent\ErrorContent.contentproj", "{B93B0A97-4AF7-4FBE-8EEA-CB01EB9871AA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Windows Phone = Debug|Windows Phone
+		Release|Windows Phone = Release|Windows Phone
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Debug|Windows Phone.ActiveCfg = Debug|Windows Phone
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Debug|Windows Phone.Build.0 = Debug|Windows Phone
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Debug|Windows Phone.Deploy.0 = Debug|Windows Phone
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Release|Windows Phone.ActiveCfg = Release|Windows Phone
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Release|Windows Phone.Build.0 = Release|Windows Phone
+		{F27456E6-8980-47B3-983E-B8DAA71B338D}.Release|Windows Phone.Deploy.0 = Release|Windows Phone
+		{B93B0A97-4AF7-4FBE-8EEA-CB01EB9871AA}.Debug|Windows Phone.ActiveCfg = Debug|Windows Phone
+		{B93B0A97-4AF7-4FBE-8EEA-CB01EB9871AA}.Release|Windows Phone.ActiveCfg = Release|Windows Phone
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
