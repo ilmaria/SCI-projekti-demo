@@ -9,6 +9,11 @@ using Microsoft.Xna.Framework.Input.Touch;
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
 
+// HUOMIO !!!!
+/*
+    
+*/
+
 
 namespace Error
 {
