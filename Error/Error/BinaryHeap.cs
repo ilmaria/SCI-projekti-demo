@@ -146,19 +146,17 @@ namespace Error
         #region private methods and stuff
         public void UpHeap(int index)
         {
+            T item = _items[index];
             while (index > 0) // While item hasn't bubbled to the top (index = 0)	
             {
                 int parent = (index - 1) >> 1; // parent = (index - 1) / 2
                 if (_items[index].CompareTo(_items[parent]) < 0)
                 {
-                    // swap items
-                    T tmp = _items[index];
                     _items[index] = _items[parent];
-                    _items[parent] = tmp;
                     index = parent;
                 }
-                else return;
             }
+            _items[index] = item;
         }
         void DownHeap(int index)
         {// Move item at index down the heap until heap condition is satisfied
