@@ -6,6 +6,10 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 
+//ilmari : ui, datan tuonti
+//henri: varaston tietorakenne, järjestyksen optimointi
+
+
 namespace Error
 {
     /// <summary>
@@ -31,6 +35,11 @@ namespace Error
         Point goal = new Point(int.MinValue, int.MinValue);
         SamplerState pointSampler;
         AStar pathFinder;
+
+
+
+        WareHouse wareHouse;
+        List<Order> orders;
 
 
         public App()
