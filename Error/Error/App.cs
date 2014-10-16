@@ -5,13 +5,14 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using System.Linq;
 
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
 
 // HUOMIO !!!!
 /*
-    
+    Ilmari ks ReadWareHouseData(), ReadOrders(), class DataBaseEntry
 */
 
 
@@ -42,9 +43,8 @@ namespace Error
         AStar pathFinder;
 
 
-
-        WareHouse wareHouse;
-        List<Order> orders;
+        DataBase _productDataBase;
+        List<Order> _orders;
 
 
         public App()
@@ -140,7 +140,14 @@ namespace Error
                                 if (startButton.Contains(gesture.Position))
                                 {
                                     currentScreen = Screen.NavigationScreen;
-                                    map = CreateMap();
+
+                                    _productDataBase = ReadWareHouseData();
+                                    _orders = ReadOrders();
+                                    OptimizeOrders(_orders);
+                                    CreateOrUpdateAStarMap(ref map, _productDataBase);
+                                    //map = CreateMap();
+
+
                                     while (true)
                                     {
                                         start = new Point(random.Next(map.SizeX), random.Next(map.SizeY));
@@ -185,41 +192,9 @@ namespace Error
         {
 
         }
-
-        Map CreateMap()
-        {
-            Map m = new Map(64, 64);
-            for (int x = 0; x < m.SizeX; x++)
-            {
-                for (int y = 0; y < m.SizeY; y++)
-                {
-                    MapNode mapNode = new MapNode();
-                    //mapNode.IsTraversable = (random.Next(100) < 80);
-                    mapNode.IsTraversable = true;
-                    m[x, y] = mapNode;
-                }
-            }
-            for (int i = 0; i < m.SizeX * m.SizeY / 25; i++)
-            {
-                Rectangle wall = new Rectangle(random.Next(m.SizeX), random.Next(m.SizeY), random.Next(5), random.Next(12));
-                for (int x = wall.X; x < wall.X + wall.Width; x++)
-                {
-                    for (int y = wall.Y; y < wall.Y + wall.Height; y++)
-                    {
-                        if (m.Contains(new Point(x,y)))
-                        {
-                            var node = m[x, y];
-                            node.IsTraversable = false;
-                            m[x, y] = node;
-                        }
-                    }
-                }
-            }
-            return m;
-        }
         void UpdateMapTexture()
         {
-            if (mapColors == null || mapTexture == null)
+            if (mapColors == null || mapTexture == null || mapColors.Length != map.SizeX * map.SizeY)
             {
                 mapColors = new Color[map.SizeX * map.SizeY];
                 mapTexture = new Texture2D(GraphicsDevice, map.SizeX, map.SizeY);
@@ -276,6 +251,96 @@ namespace Error
                     break;
             }           
             base.Draw(gameTime);
+        }
+
+
+
+
+
+        DataBase ReadWareHouseData()
+        {
+            // esimerkki ja testausta varten
+            DataBase db = new DataBase(100);
+            for (int i = 0; i < 500; i++)
+            {
+                var entry = new DataBaseEntry();
+                entry.ProductCode = i.ToString();
+                entry.ProductDescription = "ruuvi";
+                entry.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
+                entry.Amount = 20000;
+
+                float x = random.Next(64);
+                float y = random.Next(64);
+                float z = 1f; // metrin korkeudella
+                float width = random.Next(4);// yleensä eurolavan koko
+                float height = 1f;
+                entry.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
+
+                db.Add(entry);
+            }
+            return db;
+
+            // .xml?
+        }
+        List<Order> ReadOrders()
+        {
+            List<Order> orders = new List<Order>(1);
+
+            Order order = new Order();
+            order.Products = new List<Product>(2);
+            order.Products.Add(new Product { Code = "27", Amount = 473 });
+            order.Products.Add(new Product { Code = "35", Amount = 3473 });
+            orders.Add(order);
+
+            return orders;
+        }
+        void OptimizeOrders(List<Order> orders)
+        {
+
+        }
+        void CreateOrUpdateAStarMap(ref Map m, DataBase db)
+        {
+            // oletetaan xmin, ymin = 0 ja 1 metrin resoluutio...
+            int preferredSizeX = (int)db.Items.Max(item => item.BoundingBox.Max.X);
+            int preferredSizeY = (int)db.Items.Max(item => item.BoundingBox.Max.Y);
+
+            if (m == null || m.SizeX != preferredSizeX || m.SizeY != preferredSizeY)
+            {
+                m = new Map(preferredSizeX, preferredSizeY);
+            }
+
+            for (int x = 0; x < m.SizeX; x++)
+            {
+                for (int y = 0; y < m.SizeY; y++)
+                {
+                    MapNode mapNode = new MapNode();
+                    mapNode.IsTraversable = true;
+                    m[x, y] = mapNode;
+                }
+            }
+
+            // TODO
+            // asioiden ali voi päästä, asiat voivat olla eri kerroksissa
+            // --> float floorLevel
+            // lisäksi esteet, jotka eivät tuotteita
+
+            foreach (DataBaseEntry entry in db.Items)
+            {
+                BoundingBox b = entry.BoundingBox;
+
+                for (int x = (int)b.Min.X; x < (int)b.Max.X; x++)
+                {
+                    for (int y = (int)b.Min.Y; y < (int)b.Max.Y; y++)
+                    {
+                        if (m.Contains(new Point(x, y)))
+                        {
+                            var node = m[x, y];
+                            node.IsTraversable = false;
+                            m[x, y] = node;
+                        }
+                    }
+                }
+            }
         }
     }
 

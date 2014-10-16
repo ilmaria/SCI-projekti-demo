@@ -155,6 +155,7 @@ namespace Error
                     _items[index] = _items[parent];
                     index = parent;
                 }
+                else break;
             }
             _items[index] = item;
         }

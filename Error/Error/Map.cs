@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using System.Linq;
 
 namespace Error
 {
@@ -32,11 +33,5 @@ namespace Error
     public struct MapNode
     {
         public bool IsTraversable;
-        public string Data;
-
-        //MapNode sis‰lt‰‰ ainakin: 
-        //  -tiedon voiko kulkea
-        //  -hyllykoodin tms
-        //  -lista tuotteista (+inventaariostatus?)
     }
 }

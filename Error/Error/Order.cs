@@ -7,5 +7,7 @@ namespace Error
 {
     public class Order
     {
+        public List<Product> Products;
+        // asiakas, toimitus päivä jne
     }
 }
