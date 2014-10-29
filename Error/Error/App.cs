@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Phone.Shell;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
-using System.Linq;
 
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
 
 /*
-    Ilmari ks ReadWareHouseData(), ReadOrders(), class DataBaseEntry
-    sovellukseen tarvittaneen mahdollisuus hakea tuotteita tuotekoodilla. Data saadaan DataBase.GetByProductCode(), UI puuttuu
+    Ilmari ks ReadWareHouseData(), ReadOrders(), class Product, class Order.cs
+    sovellukseen tarvittaneen mahdollisuus hakea tuotteita tuotekoodilla. Data saadaan Storage.GetByProductCode(), UI puuttuu
 */
 
 /* TODO
@@ -43,16 +43,14 @@ namespace Error
         Color buttonColor1 = Color.CornflowerBlue;
         Rectangle startButton = new Rectangle(100, 500, 280, 100);
 
-        Map map = null;
         Color[] mapColors;
         Texture2D mapTexture;
         List<Point> path;
         Point start = new Point(int.MinValue, int.MinValue);
         Point goal = new Point(int.MinValue, int.MinValue);
         SamplerState pointSampler;
-        AStar pathFinder;
 
-        DataBase _productDataBase;
+        Storage _storage;
         List<Order> _orders;
 
         // pakkauspöydän sijainti fyysisissä koordinaateissa (ei A* - koordinaateissa)
@@ -92,7 +90,6 @@ namespace Error
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
             TouchPanel.EnabledGestures = GestureType.FreeDrag | GestureType.Tap;
 
             blankTexture = new Texture2D(GraphicsDevice, 1, 1);
@@ -115,7 +112,6 @@ namespace Error
             pointSampler.AddressU = TextureAddressMode.Clamp;
             pointSampler.AddressV = TextureAddressMode.Clamp;
             pointSampler.Filter = TextureFilter.Point;
-            // TODO: use this.Content to load your game content here
         }
 
         /// <summary>
@@ -134,8 +130,6 @@ namespace Error
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            // TODO: Add your update logic here
-
             switch (currentScreen)
             {
                 case Screen.StartScreen:
@@ -153,23 +147,21 @@ namespace Error
                                 {
                                     currentScreen = Screen.NavigationScreen;
 
-                                    _productDataBase = ReadWareHouseData();
+                                    _storage = ReadWareHouseData();
                                     _orders = ReadOrders();
                                     OptimizeOrders(_orders);
-                                    CreateOrUpdateAStarMap(ref map, _productDataBase);
 
                                     while (true)
                                     {
-                                        start = new Point(random.Next(map.SizeX), random.Next(map.SizeY));
-                                        goal = new Point(random.Next(map.SizeX), random.Next(map.SizeY));
-                                        if (!map[start.X, start.Y].IsTraversable) continue;
-                                        if (!map[goal.X, goal.Y].IsTraversable) continue;
-                                        if (map.Contains(start) && map.Contains(goal) && start != goal) break;
+                                        start = new Point(random.Next(_storage.Map.SizeX), random.Next(_storage.Map.SizeY));
+                                        goal = new Point(random.Next(_storage.Map.SizeX), random.Next(_storage.Map.SizeY));
+                                        if (!_storage.Map[start.X, start.Y].IsTraversable) continue;
+                                        if (!_storage.Map[goal.X, goal.Y].IsTraversable) continue;
+                                        if (_storage.Map.Contains(start) && _storage.Map.Contains(goal) && start != goal) break;
                                     }
-                                    pathFinder = new AStar(map);
                                     float time;
-                                    path = pathFinder.FindPath(start, goal, out time);
-                                    UpdateMapTexture();
+                                    path = _storage.PathFinder.FindPath(start, goal, out time);
+                                    UpdateMapTexture(_storage.Map);
                                 }
 
                                 break;
@@ -203,7 +195,7 @@ namespace Error
         {
 
         }
-        void UpdateMapTexture()
+        void UpdateMapTexture(Map map)
         {
             if (mapColors == null || mapTexture == null || mapColors.Length != map.SizeX * map.SizeY)
             {
@@ -268,31 +260,33 @@ namespace Error
 
 
 
-        DataBase ReadWareHouseData()
+        Storage ReadWareHouseData()
         {
             // esimerkki ja testausta varten
-            DataBase db = new DataBase(100);
-            for (int i = 0; i < 500; i++)
+            Storage storage = new Storage(100);
+            for (int i = 0; i < 200; i++)
             {
-                var entry = new DataBaseEntry();
-                entry.ProductCode = i.ToString();
-                entry.ProductDescription = "ruuvi";
-                entry.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
-                entry.Amount = 20000;
-                entry.InsertionDate = DateTime.Now;
-                entry.ModifiedDate = DateTime.Now;
-                entry.ProductionDate = new DateTime(2014, 7, 15);
+                var product = new Product();
+                product.ProductCode = i.ToString();
+                product.ProductDescription = "ruuvi";
+                product.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
+                product.Amount = 20000;
+                product.InsertionDate = DateTime.Now;
+                product.ModifiedDate = DateTime.Now;
+                product.ProductionDate = new DateTime(2014, 7, 15);
 
+                // tuotteen fyysinen sijainti metreissä
                 float x = random.Next(64);
                 float y = random.Next(64);
-                float z = 1f; // metrin korkeudella
+                float z = 0f;
                 float width = random.Next(4);// yleensä eurolavan koko
                 float height = 1f;
-                entry.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
+                product.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
 
-                db.Add(entry);
+                storage.Add(product);
             }
-            return db;
+            storage.CreateMap(1f);
+            return storage;
 
             // .xml?
         }
@@ -301,9 +295,9 @@ namespace Error
             List<Order> orders = new List<Order>(1);
 
             Order order = new Order();
-            order.Products = new List<Product>(2);
-            order.Products.Add(new Product { Code = "27", Amount = 473 });
-            order.Products.Add(new Product { Code = "35", Amount = 3473 });
+            order.Lines = new List<OrderLine>(2);
+            order.Lines.Add(new OrderLine { ProductCode = "27", Amount = 473 });
+            order.Lines.Add(new OrderLine { ProductCode = "35", Amount = 3473 });
             orders.Add(order);
 
             return orders;
@@ -328,92 +322,56 @@ namespace Error
         {
             // jos kerätään kerralla monta tilausta, ei dropoff-sijainnilla ole väliä
             // create all possible orders in which products can be picked (num_products!)
-            var permutations = (Product[][])GetPermutations<Product>(order.Products, order.Products.Count);
+            var permutations = (OrderLine[][])GetPermutations<OrderLine>(order.Lines, order.Lines.Count);
 
             // calculate traversal times for all permutations
-            float[] costs = new float[Factorial(order.Products.Count)];
+            float[] costs = new float[Factorial(order.Lines.Count)];
             for (int iPermutation = 0; iPermutation < permutations.GetLength(0); iPermutation++)
             {
                 // start at current physical location
-                Point currentLocation = BoundingBox2AStarLocation(new BoundingBox(startPosition,startPosition));//...
+                Point currentLocation = _storage.Map.PhysicalToInternalCoordinates(startPosition);
                 float time;
 
-                for (int iProduct = 0; iProduct < order.Products.Count; iProduct++)
+                for (int iLine = 0; iLine < order.Lines.Count; iLine++)
                 {
-                    Product currentProduct = permutations[iPermutation][iProduct];
-                    DataBaseEntry nearestEntry = FindNearestToCollect(currentProduct.Code, currentProduct.Amount);
-                    Point productLocation = BoundingBox2AStarLocation(nearestEntry.BoundingBox);
-                    pathFinder.FindPath(currentLocation, productLocation, out time);
+                    OrderLine line = permutations[iPermutation][iLine];
+
+                    // find the nearest item in storage that has enough this product
+                    Product product = FindNearestToCollect(line.ProductCode, line.Amount, currentLocation);
+
+                    // esteetön sijanti josta tuotetta voidaan kerätä, ts. varastopaikan vieressä
+                    Point collectingLocation = _storage.Map.FindCollectingPoint(product.BoundingBox);
+
+                    _storage.PathFinder.FindPath(currentLocation, collectingLocation, out time);
                     costs[iPermutation] += time;
-                    currentLocation = productLocation;
+                    currentLocation = collectingLocation;
                 }
             }
 
             // find permutation with lowest traversal time
             float minCost = costs.Min();
             int minIndex = costs.ToList().IndexOf(minCost);
-            order.Products = permutations[minIndex].ToList();
+            order.Lines = permutations[minIndex].ToList();
         }
-        void CreateOrUpdateAStarMap(ref Map m, DataBase db)
+
+        Product FindNearestToCollect(string productCode, int amount, Point location)
         {
-            // oletetaan xmin, ymin = 0 ja 1 metrin resoluutio...
-            int preferredSizeX = (int)db.Items.Max(item => item.BoundingBox.Max.X);
-            int preferredSizeY = (int)db.Items.Max(item => item.BoundingBox.Max.Y);
-
-            if (m == null || m.SizeX != preferredSizeX || m.SizeY != preferredSizeY)
-            {
-                m = new Map(preferredSizeX, preferredSizeY);
-            }
-
-            for (int x = 0; x < m.SizeX; x++)
-            {
-                for (int y = 0; y < m.SizeY; y++)
-                {
-                    MapNode mapNode = new MapNode();
-                    mapNode.IsTraversable = true;
-                    m[x, y] = mapNode;
-                }
-            }
+            var items = _storage.GetByProductCode(productCode);
+            items = (from item in items where item.Amount >= amount select item).ToList();
 
             // TODO
-            // asioiden ali voi päästä, asiat voivat olla eri kerroksissa
-            // --> float floorLevel
-            // lisäksi esteet, jotka eivät tuotteita
+            //if(items.Count == 0) tuotetta ei varastossa
 
-            foreach (DataBaseEntry entry in db.Items)
+            // find nearest product
+            BinaryHeap<ComparableIndex> indices = new BinaryHeap<ComparableIndex>(items.Count);
+            for (int i = 0; i < items.Count; i++)
             {
-                BoundingBox b = entry.BoundingBox;
-
-                for (int x = (int)b.Min.X; x < (int)b.Max.X; x++)
-                {
-                    for (int y = (int)b.Min.Y; y < (int)b.Max.Y; y++)
-                    {
-                        if (m.Contains(new Point(x, y)))
-                        {
-                            var node = m[x, y];
-                            node.IsTraversable = false;
-                            m[x, y] = node;
-                        }
-                    }
-                }
+                Point collectionPoint = _storage.Map.FindCollectingPoint(items[i].BoundingBox);
+                float time;
+                _storage.PathFinder.FindPath(location, collectionPoint, out time);
+                indices.Add(new ComparableIndex { Index = i, Cost = time });
             }
-        }
-
-        // TODO
-        DataBaseEntry FindNearestToCollect(string productCode, int amount)
-        {
-            DataBaseEntry entry = new DataBaseEntry();
-
-
-            //if(entry.Amount < amount) ei kelpaa
-
-            entry = _productDataBase.GetByProductCode(productCode).First();
-            return entry;
-        }
-        // TODO
-        Point BoundingBox2AStarLocation(BoundingBox b)
-        {
-            return new Point(0, 0);
+            return items[indices.Peek().Index];
         }
 
 
@@ -454,5 +412,15 @@ namespace Error
     {
         StartScreen,
         NavigationScreen
+    }
+    public struct ComparableIndex : IComparable<ComparableIndex>
+    {
+        public int Index;
+        public float Cost;
+
+        int IComparable<ComparableIndex>.CompareTo(ComparableIndex other)
+        {
+            return Cost.CompareTo(other.Cost);
+        }
     }
 }

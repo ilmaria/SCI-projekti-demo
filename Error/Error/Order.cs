@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Error
 {
     public class Order
     {
-        public List<Product> Products;
-        // asiakas, toimitus p‰iv‰ jne
+        public List<OrderLine> Lines;
+        public string Customer;
+        public DateTime RequestedShippingDate;
+    }
+    public class OrderLine
+    {
+        public string ProductCode; // asfasg4s53sdgsa
+        public int Amount; // 500 = toimitettava m‰‰r‰
+        //public DataBaseEntry OptimalDBEntry = null; // t‰‰lt‰ ker‰t‰‰n
     }
 }
