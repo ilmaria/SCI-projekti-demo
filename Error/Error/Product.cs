@@ -9,5 +9,6 @@ namespace Error
     {
         public string Code; // asfasg4s53sdgsa
         public int Amount; // 500 = toimitettava m‰‰r‰
+        //public DataBaseEntry OptimalDBEntry = null; // t‰‰lt‰ ker‰t‰‰n
     }
 }

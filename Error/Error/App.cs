@@ -10,10 +10,20 @@ using System.Linq;
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
 
-// HUOMIO !!!!
 /*
     Ilmari ks ReadWareHouseData(), ReadOrders(), class DataBaseEntry
+    sovellukseen tarvittaneen mahdollisuus hakea tuotteita tuotekoodilla. Data saadaan DataBase.GetByProductCode(), UI puuttuu
 */
+
+/* TODO
+ esteet, jotka eivät tuotteita
+ lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
+ esim.
+*/
+
+/* Toimivat ominaisuudet:
+ * 
+ */
 
 
 namespace Error
@@ -42,9 +52,11 @@ namespace Error
         SamplerState pointSampler;
         AStar pathFinder;
 
-
         DataBase _productDataBase;
         List<Order> _orders;
+
+        // pakkauspöydän sijainti fyysisissä koordinaateissa (ei A* - koordinaateissa)
+        Vector3 _packingPosition;
 
 
         public App()
@@ -145,8 +157,6 @@ namespace Error
                                     _orders = ReadOrders();
                                     OptimizeOrders(_orders);
                                     CreateOrUpdateAStarMap(ref map, _productDataBase);
-                                    //map = CreateMap();
-
 
                                     while (true)
                                     {
@@ -157,7 +167,8 @@ namespace Error
                                         if (map.Contains(start) && map.Contains(goal) && start != goal) break;
                                     }
                                     pathFinder = new AStar(map);
-                                    path = pathFinder.FindPath(start, goal);
+                                    float time;
+                                    path = pathFinder.FindPath(start, goal, out time);
                                     UpdateMapTexture();
                                 }
 
@@ -268,6 +279,9 @@ namespace Error
                 entry.ProductDescription = "ruuvi";
                 entry.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
                 entry.Amount = 20000;
+                entry.InsertionDate = DateTime.Now;
+                entry.ModifiedDate = DateTime.Now;
+                entry.ProductionDate = new DateTime(2014, 7, 15);
 
                 float x = random.Next(64);
                 float y = random.Next(64);
@@ -296,7 +310,49 @@ namespace Error
         }
         void OptimizeOrders(List<Order> orders)
         {
+            
+        }
+        void OptimizeOrders(ref List<Order> orders, Vector3 startPosition, Vector3 dropoffPosition)
+        {
+            // optimize order of products in orders
+            for (int iOrder = 0; iOrder < orders.Count; iOrder++)
+            {
+                OptimizeOrder(orders[iOrder], startPosition, dropoffPosition);
+            }
 
+            // todo optimize order of orders
+            // deadlines
+            // other priorities
+        }
+        void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
+        {
+            // jos kerätään kerralla monta tilausta, ei dropoff-sijainnilla ole väliä
+            // create all possible orders in which products can be picked (num_products!)
+            var permutations = (Product[][])GetPermutations<Product>(order.Products, order.Products.Count);
+
+            // calculate traversal times for all permutations
+            float[] costs = new float[Factorial(order.Products.Count)];
+            for (int iPermutation = 0; iPermutation < permutations.GetLength(0); iPermutation++)
+            {
+                // start at current physical location
+                Point currentLocation = BoundingBox2AStarLocation(new BoundingBox(startPosition,startPosition));//...
+                float time;
+
+                for (int iProduct = 0; iProduct < order.Products.Count; iProduct++)
+                {
+                    Product currentProduct = permutations[iPermutation][iProduct];
+                    DataBaseEntry nearestEntry = FindNearestToCollect(currentProduct.Code, currentProduct.Amount);
+                    Point productLocation = BoundingBox2AStarLocation(nearestEntry.BoundingBox);
+                    pathFinder.FindPath(currentLocation, productLocation, out time);
+                    costs[iPermutation] += time;
+                    currentLocation = productLocation;
+                }
+            }
+
+            // find permutation with lowest traversal time
+            float minCost = costs.Min();
+            int minIndex = costs.ToList().IndexOf(minCost);
+            order.Products = permutations[minIndex].ToList();
         }
         void CreateOrUpdateAStarMap(ref Map m, DataBase db)
         {
@@ -341,6 +397,56 @@ namespace Error
                     }
                 }
             }
+        }
+
+        // TODO
+        DataBaseEntry FindNearestToCollect(string productCode, int amount)
+        {
+            DataBaseEntry entry = new DataBaseEntry();
+
+
+            //if(entry.Amount < amount) ei kelpaa
+
+            entry = _productDataBase.GetByProductCode(productCode).First();
+            return entry;
+        }
+        // TODO
+        Point BoundingBox2AStarLocation(BoundingBox b)
+        {
+            return new Point(0, 0);
+        }
+
+
+        //int[][] CreatePermutations(int[] items)
+        //{
+        //    int[][] permutations = new int[Factorial(items.Length)][];
+        //    for (int perm = 0; perm < permutations.GetLength(0); perm++)
+        //    {
+        //        permutations[perm] = new int[items.Length];
+        //    }
+
+        //    return permutations;
+        //}
+
+
+        // all length! possible orders
+        static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
+        {
+            if (length == 1) return (IEnumerable<IEnumerable<T>>)list.Select(t => new T[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new T[] { t2 }));
+        }
+        int Factorial(int x)
+        {
+            if (x <= 0) return 1;
+            int factorial = 1;
+            while (x > 1)
+            {
+                factorial *= x;
+                x--;
+            }
+            return factorial;
         }
     }
 

@@ -34,8 +34,9 @@ namespace Error
             _parentPositions = new Point[_map.SizeX, _map.SizeY];
             _openList = new BinaryHeap<Node>(_map.SizeX * _map.SizeY);
         }        
-        public List<Point> FindPath(Point startPosition, Point goalPosition)
+        public List<Point> FindPath(Point startPosition, Point goalPosition, out float time)
         {
+            time = 0f;
             if (startPosition == goalPosition)
                 return new List<Point>(0);
             if (!(_map.Contains(startPosition) && _map.Contains(goalPosition)))
@@ -73,6 +74,8 @@ namespace Error
                 // path is found
                 if (_whichList[goalPosition.X, goalPosition.Y] == LIST_OPEN) break;
             }
+            // time it takes to traverse the path
+            time = _G[goalPosition.X, goalPosition.Y];
 
             // construct path by traversing from goal to start, and reverse order in the end
             Point currentPosition = goalPosition;
