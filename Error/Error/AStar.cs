@@ -36,6 +36,7 @@ namespace Error
         }        
         public List<Point> FindPath(Point startPosition, Point goalPosition, out float time)
         {
+            _openList.Clear();
             time = 0f;
             if (startPosition == goalPosition)
                 return new List<Point>(0);

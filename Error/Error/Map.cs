@@ -32,6 +32,7 @@ namespace Error
         }
         public bool IsTraversable(Point p)
         {
+            if (!Contains(p)) return false;
             return _mapData[p.X, p.Y].IsTraversable;
         }
         public Point PhysicalToInternalCoordinates(Vector3 position)
@@ -57,7 +58,7 @@ namespace Error
             {
                 for (int x = p.X - offset; x < p.X + offset; x++)
                 {
-                    for (int y = p.Y - offset; y < p.Y + offset; x++)
+                    for (int y = p.Y - offset; y < p.Y + offset; y++)
                     {
                         if (IsTraversable(new Point(x, y)))
                         {

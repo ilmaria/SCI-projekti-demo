@@ -80,6 +80,25 @@ namespace Error
                 // TODO
             }
         }
+        public Product FindNearestToCollect(string productCode, int amount, Point location)
+        {
+            var items = GetByProductCode(productCode);
+            items = (from item in items where item.Amount >= amount select item).ToList();
+
+            // TODO
+            //if(items.Count == 0) tuotetta ei varastossa
+
+            // find nearest product
+            BinaryHeap<ComparableIndex> indices = new BinaryHeap<ComparableIndex>(items.Count);
+            for (int i = 0; i < items.Count; i++)
+            {
+                Point collectionPoint = Map.FindCollectingPoint(items[i].BoundingBox);
+                float time;
+                PathFinder.FindPath(location, collectionPoint, out time);
+                indices.Add(new ComparableIndex { Index = i, Cost = time });
+            }
+            return items[indices.Peek().Index];
+        }
     }
 
     // saapuu lavallinen tavaraa -> new DataBaseEntry()
