@@ -45,12 +45,15 @@ namespace Error
         Rectangle testButton = new Rectangle(100, 600, 280, 90);
         Rectangle readDataButton = new Rectangle(100, 400, 280, 90);
         Rectangle startCollectingButton = new Rectangle(100, 500, 280, 90);
-        Rectangle nextLineButton = new Rectangle(100, 500, 280, 90);
-        Rectangle goPackButton = new Rectangle(100, 600, 280, 90);
-        Rectangle showMapButton = new Rectangle(0, 700, 100, 100);
+        Rectangle nextLineButton = new Rectangle(100, 500, 280, 75);
+        Rectangle goPackButton = new Rectangle(100, 580, 280, 75);
+        Rectangle showMapButton = new Rectangle(0, 680, 120, 120);
+        Rectangle orderInfoButton = new Rectangle(120, 680, 120, 120);
+        Rectangle makeChangeButton = new Rectangle(240, 680, 120, 120);
+        Rectangle searchButton = new Rectangle(360, 680, 120, 120);
         string errorText = null;
 
-        Texture2D mapIcon;
+        Texture2D mapIcon, listIcon, changeIcon, searchIcon;
         Color[] mapColors;
         Texture2D mapTexture;
         List<Point> path;
@@ -124,6 +127,9 @@ namespace Error
             spriteBatch = new SpriteBatch(GraphicsDevice);
             font = Content.Load<SpriteFont>("SegoeWP");
             mapIcon = Content.Load<Texture2D>("mapIcon");
+            listIcon = Content.Load<Texture2D>("listIcon");
+            changeIcon = Content.Load<Texture2D>("changeIcon");
+            searchIcon = Content.Load<Texture2D>("searchIcon");
             random = new Random();
             pointSampler = new SamplerState();
             pointSampler.AddressU = TextureAddressMode.Clamp;
@@ -346,7 +352,7 @@ namespace Error
                     break;
                 case Screen.CollectingScreen:
                     GraphicsDevice.Clear(Color.White);
-                    spriteBatch.Begin();
+                    spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
                     Order order = _collectingData.CurrentOrder;
                     if (order != null)
                     {
@@ -368,15 +374,29 @@ namespace Error
                     spriteBatch.Draw(blankTexture, goPackButton, buttonColor1);
                     spriteBatch.DrawStringCentered(font, "Pakkaamaan", goPackButton, Color.Black, 1f);
 
-                    spriteBatch.Draw(blankTexture, showMapButton, new Color(200, 200, 200, 255));
-                    var rect = showMapButton;
-                    rect.Inflate(-15, -15);
-                    spriteBatch.Draw(mapIcon, rect, Color.DarkSlateGray);
+                    DrawIconButton(showMapButton, "kartta", mapIcon);
+                    DrawIconButton(orderInfoButton, "tiedot", listIcon);
+                    DrawIconButton(makeChangeButton, "muuta", changeIcon);
+                    DrawIconButton(searchButton, "etsi", searchIcon);
 
                     spriteBatch.End();
                     break;
             }           
             base.Draw(gameTime);
+        }
+        void DrawIconButton(Rectangle touchArea, string text, Texture2D icon)
+        {
+            var rect = touchArea;
+            rect.X += 25;
+            rect.Y += 10;
+            rect.Width -= 50;
+            rect.Height -= 50;
+            var textrect = new Rectangle(touchArea.X, touchArea.Bottom - 40, touchArea.Width, 40);
+            spriteBatch.Draw(blankTexture, touchArea, Color.DarkSlateGray);
+            touchArea.Inflate(-1, -2);
+            spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
+            spriteBatch.Draw(icon, rect, Color.DarkSlateGray);
+            spriteBatch.DrawStringCentered(font, text, textrect, Color.DarkSlateGray, 0.6f);
         }
 
         Storage ReadWareHouseData()
