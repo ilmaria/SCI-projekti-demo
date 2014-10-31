@@ -53,6 +53,7 @@ namespace Error
         Rectangle makeChangeButton = new Rectangle(240, 680, 120, 120);
         Rectangle searchButton = new Rectangle(360, 680, 120, 120);
         string errorText = null;
+        Boolean isDataImported = false;
 
         Texture2D mapIcon, listIcon, changeIcon, searchIcon;
         Color[] mapColors;
@@ -222,6 +223,11 @@ namespace Error
                                     Storage = ReadWareHouseData();
                                     _orders = ReadOrders();
                                     dataStateColor = Color.Green;
+                                    isDataImported = true;
+                                    if (errorText == "Dataa ei luettu")
+                                    {
+                                        errorText = null;
+                                    }
                                 }
                                 break;
                         }
@@ -337,6 +343,10 @@ namespace Error
                     {
                         spriteBatch.DrawStringCentered(font, "Virhe: " + errorText, new Rectangle(50, 200, 380, 60), Color.Black, 0.6f);
                     }
+                    else if (isDataImported)
+                    {
+                        spriteBatch.DrawStringCentered(font, "Data luettu", new Rectangle(50, 200, 380, 60), Color.Black, 0.6f);
+                    }
                     spriteBatch.End();
                     break;
                 case Screen.Test:
@@ -364,9 +374,10 @@ namespace Error
                     Product product = _collectingData.CurrentProduct;
                     if (line != null && product != null)
                     {
-                        spriteBatch.DrawStringCentered(font, product.ProductDescription, new Rectangle(40, 200, 400, 100), Color.Black, 1f);
-                        spriteBatch.DrawStringCentered(font, line.Amount + " kpl, " + line.Amount/product.PackageSize + " pakettia", new Rectangle(40, 300, 400, 100), Color.Black, 1f);
-                        spriteBatch.DrawStringCentered(font, "Tuotekoodi: " + product.ProductCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
+                        spriteBatch.DrawStringCentered(font, product.ProductDescription, new Rectangle(40, 100, 400, 100), Color.Black, 1f);
+                        spriteBatch.DrawStringCentered(font, line.Amount + " kpl, " + line.Amount/product.PackageSize + " pakettia", new Rectangle(40, 200, 400, 100), Color.Black, 1f);
+                        spriteBatch.DrawStringCentered(font, "Tuotekoodi: " + product.ProductCode, new Rectangle(40, 300, 400, 100), Color.Black, 1f);
+                        spriteBatch.DrawStringCentered(font, "Hyllypaikka: " + product.ShelfCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
                     }
 
                     DrawTextButton(nextLineButton, "Seuraava rivi");
