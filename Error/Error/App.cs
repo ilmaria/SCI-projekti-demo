@@ -39,9 +39,7 @@ namespace Error
         Random random;
 
         Texture2D blankTexture;
-        Stack<Screen> _navigationStack;
-        Color buttonColor1 = Color.CornflowerBlue;
-        Color dataStateColor = Color.Red;
+        Stack<Screens> _navigationStack;
         Rectangle testButton = new Rectangle(100, 600, 280, 90);
         Rectangle readDataButton = new Rectangle(100, 400, 280, 90);
         Rectangle startCollectingButton = new Rectangle(100, 500, 280, 90);
@@ -56,9 +54,6 @@ namespace Error
         Texture2D mapIcon, listIcon, changeIcon, searchIcon;
         Color[] mapColors;
         Texture2D mapTexture;
-        List<Point> path;
-        Point start = new Point(int.MinValue, int.MinValue);
-        Point goal = new Point(int.MinValue, int.MinValue);
         SamplerState pointSampler;
 
         public Storage Storage { get; private set; }
@@ -113,8 +108,8 @@ namespace Error
             TouchPanel.EnabledGestures = GestureType.FreeDrag | GestureType.Tap;
             blankTexture = new Texture2D(GraphicsDevice, 1, 1);
             blankTexture.SetData(new[] { Color.White });
-            _navigationStack = new Stack<Screen>(8);
-            _navigationStack.Push(Screen.StartScreen);
+            _navigationStack = new Stack<Screens>(8);
+            _navigationStack.Push(Screens.Start);
             base.Initialize();
         }
 
@@ -169,7 +164,7 @@ namespace Error
 
             switch (_navigationStack.Peek())
             {
-                case Screen.StartScreen:
+                case Screens.Start:
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -183,8 +178,10 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    _navigationStack.Push(Screen.Test);
-                                    dataStateColor = Color.Red;
+                                    _navigationStack.Push(Screens.Test);
+
+                                    Point start = new Point(int.MinValue, int.MinValue);
+                                    Point goal = new Point(int.MinValue, int.MinValue);
                                     while (true)
                                     {
                                         start = new Point(random.Next(Storage.Map.SizeX), random.Next(Storage.Map.SizeY));
@@ -194,7 +191,7 @@ namespace Error
                                         if (Storage.Map.Contains(start) && Storage.Map.Contains(goal) && start != goal) break;
                                     }
                                     float time;
-                                    path = Storage.PathFinder.FindPath(start, goal, out time);
+                                    var path = Storage.PathFinder.FindPath(start, goal, out time);
                                     UpdateMapTexture(Storage.Map, path);
                                 }
                                 else if (startCollectingButton.Contains(gesture.Position))
@@ -204,8 +201,7 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    _navigationStack.Push(Screen.CollectingScreen);
-                                    dataStateColor = Color.Red;
+                                    _navigationStack.Push(Screens.Collecting);
                                     Point dropoffAstar;
                                     while (true)
                                     {
@@ -227,17 +223,16 @@ namespace Error
                                 }
                                 else if (readDataButton.Contains(gesture.Position))
                                 {
-                                    Storage = ReadWareHouseData();
+                                    Storage = ReadStorageData();
                                     _orders = ReadOrders();
-                                    dataStateColor = Color.Green;
                                 }
                                 break;
                         }
                     }
                     break;
-                case Screen.Test:
+                case Screens.Test:
                     break;
-                case Screen.CollectingScreen:
+                case Screens.Collecting:
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -255,7 +250,7 @@ namespace Error
                                 }
                                 else if (showMapButton.Contains(gesture.Position))
                                 {
-                                    _navigationStack.Push(Screen.Map);
+                                    _navigationStack.Push(Screens.Map);
                                     var points = new List<Point>(0);
                                     var products = Storage.GetByProductCode(_collectingData.CurrentLine.ProductCode);
                                     foreach (var p in products)
@@ -272,7 +267,7 @@ namespace Error
                         }
                     }
                     break;
-                case Screen.Map:
+                case Screens.Map:
                     break;
             }
 
@@ -291,7 +286,7 @@ namespace Error
             if (mapColors == null || mapTexture == null || mapColors.Length != map.SizeX * map.SizeY)
             {
                 mapColors = new Color[map.SizeX * map.SizeY];
-                mapTexture = new Texture2D(GraphicsDevice, map.SizeX, map.SizeY);
+                mapTexture = new Texture2D(GraphicsDevice, map.SizeX, map.SizeY, false, SurfaceFormat.Color);
             }
 
             for (int x = 0; x < map.SizeX; x++)
@@ -325,10 +320,10 @@ namespace Error
         protected override void Draw(GameTime gameTime)
         {
             //if (!graphicsChanged) return; // save battery life
+            GraphicsDevice.Clear(Color.White);
             switch (_navigationStack.Peek())
             {
-                case Screen.StartScreen:
-                    GraphicsDevice.Clear(Color.White);
+                case Screens.Start:
                     spriteBatch.Begin();
                     spriteBatch.DrawStringCentered(font, "Error", new Rectangle(0, 0, 480, 120), Color.Black, 1f);
                     DrawTextButton(testButton, "testi");
@@ -340,20 +335,17 @@ namespace Error
                     }
                     spriteBatch.End();
                     break;
-                case Screen.Test:
-                    GraphicsDevice.Clear(Color.Purple);
+                case Screens.Test:
                     spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
                     spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
                     spriteBatch.End();
                     break;
-                case Screen.Map:
-                    GraphicsDevice.Clear(Color.White);
+                case Screens.Map:
                     spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
                     spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
                     spriteBatch.End();
                     break;
-                case Screen.CollectingScreen:
-                    GraphicsDevice.Clear(Color.White);
+                case Screens.Collecting:
                     spriteBatch.Begin();
                     Order order = _collectingData.CurrentOrder;
                     if (order != null)
@@ -405,7 +397,7 @@ namespace Error
             spriteBatch.DrawStringCentered(font, text, touchArea, Color.DarkSlateGray, 1f);
         }
 
-        Storage ReadWareHouseData()
+        Storage ReadStorageData()
         {
             // esimerkki ja testausta varten
             Storage storage = new Storage(100);
@@ -471,7 +463,7 @@ namespace Error
 
             // calculate traversal times for all permutations
             float minTime = float.MaxValue;
-            int bestIndex = 0;
+            int minIndex = 0;
             for (int iPermutation = 0; iPermutation < permutations.GetLength(0); iPermutation++)
             {
                 // start at current physical location
@@ -495,26 +487,32 @@ namespace Error
                 if (time < minTime)
                 {
                     minTime = time;
-                    bestIndex = iPermutation;
+                    minIndex = iPermutation;
                 }
             }
-            order.Lines = permutations[bestIndex].ToList();
+            order.Lines = permutations[minIndex].ToList();
         }
         public void ShowError(string message)
         {
             errorText = message;
             _navigationStack.Clear();
-            _navigationStack.Push(Screen.StartScreen);
+            _navigationStack.Push(Screens.Start);
         }
     }
 
-    public enum Screen
+    public enum Screens
     {
-        StartScreen,
+        Start,
         Test,
-        CollectingScreen,
-        Map
+        Collecting,
+        Map,
+        Search
     }
+    //entä class Screen
+    // void processinput(App app)
+    // void draw
+    // jolloin App.Update(){_navigationStack.Peek().ProcessInput(touchCollection)}
+    // ja sama draw
 
     public class CollectingData
     {

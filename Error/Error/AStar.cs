@@ -94,10 +94,9 @@ namespace Error
         {
             for (int i = 0; i < 8; i++)
             {
-                Point position = parentNode.Position;// +_neighbors[i];
+                Point position = parentNode.Position;
                 position.X += _neighbors[i].X;
                 position.Y += _neighbors[i].Y;
-                if (!_map.Contains(position)) continue;
                 if (!_map.IsTraversable(position)) continue;
                 if (_whichList[position.X, position.Y] == LIST_CLOSED) continue;
                 if (_whichList[position.X, position.Y] == LIST_OPEN)
@@ -160,6 +159,8 @@ namespace Error
         {
             return F.CompareTo(other.F);
         }
+
+        //IEnumerable<Node> Neighbors() ?
     }
 }
 

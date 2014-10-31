@@ -35,4 +35,6 @@ namespace Error
         ProductMissing,
         Collected
     }
+    // vai public const uint STATE_MISSING = 1u << 1 jne
+    // voisi käyttää kaikkialla sovelluksessa monessa tarkoituksessa, esim. keräily/optimointifuntioissa paluuarvona
 }
