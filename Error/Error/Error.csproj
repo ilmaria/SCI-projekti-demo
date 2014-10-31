@@ -69,6 +69,7 @@
   <ItemGroup>
     <Compile Include="AStar.cs" />
     <Compile Include="BinaryHeap.cs" />
+    <Compile Include="Input.cs" />
     <Compile Include="Map.cs" />
     <Compile Include="Order.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

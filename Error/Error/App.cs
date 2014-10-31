@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using Microsoft.Xna.Framework.GamerServices;
 
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
@@ -18,11 +19,14 @@ using Microsoft.Xna.Framework.Input.Touch;
 /* TODO
  esteet, jotka eivät tuotteita
  lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
+ * tekstihakuun myös tilaukset? haku ja muutkin 4 alarivin toimintoa myös aloitussivulle? hakutulosten scrollaaminen,
+ * nyt osa ei näy
 */
 
 /* Toimivat ominaisuudet:
  * Jos tuotetta useissa sijainneissa, lähimmän sijainnin löytäminen jossa riittävästi tuotetta
  * Tilausten rivien järjestäminen siten, että kerätessä koko tilaus kerralla on kokonaismatka lyhin mahdollinen
+ * Tekstihaku varastosta toimii periaatteessa
  */
 
 
@@ -51,6 +55,7 @@ namespace Error
         Rectangle searchButton = new Rectangle(360, 680, 120, 120);
         string errorText = null;
         Boolean isDataImported = false;
+        List<string> searchResult;
 
         Texture2D mapIcon, listIcon, changeIcon, searchIcon;
         Color[] mapColors;
@@ -151,7 +156,7 @@ namespace Error
         protected override void Update(GameTime gameTime)
         {
             // back arrow
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
+            if ((!Guide.IsVisible) && GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
             {
                 if (_navigationStack.Count > 0)
                 {
@@ -253,6 +258,21 @@ namespace Error
                                 else if (goPackButton.Contains(gesture.Position))
                                 {
                                     // TODO
+                                }
+                                else if (searchButton.Contains(gesture.Position))
+                                {
+                                    // todo haku myös tilauksista?
+                                    _navigationStack.Push(Screens.Search);
+                                    Input.ShowKeyboard("hae jotain", "", "ruuvi");
+                                    var foundProducts = Storage.SearchText(Input.GetTypedText());
+                                    searchResult = new List<string>(0);
+                                    int line = 0;
+                                    foreach (var p in foundProducts)
+                                    {
+                                        searchResult.Add(line + "   " + p.ProductDescription +" "+p.ProductCode
+                                            + "  Hylly: " + p.ShelfCode + "  Määrä: " + p.Amount);
+                                        line++;
+                                    }
                                 }
                                 else if (showMapButton.Contains(gesture.Position))
                                 {
@@ -383,6 +403,19 @@ namespace Error
 
                     spriteBatch.End();
                     break;
+                case Screens.Search:
+                    spriteBatch.Begin();
+                    var r = new Rectangle(20, 100, 440, 80);
+                    if (searchResult != null)
+                    {
+                        foreach (var textLine in searchResult)
+                        {
+                            spriteBatch.DrawStringCentered(font, textLine, r, Color.DarkSlateGray, 0.6f);
+                            r.Y += 50;
+                        }
+                    }
+                    spriteBatch.End();
+                    break;
             }           
             base.Draw(gameTime);
         }
@@ -415,9 +448,9 @@ namespace Error
             for (int i = 0; i < 200; i++)
             {
                 var product = new Product();
-                product.ProductCode = (i%36).ToString();
+                product.ProductCode = "asd"+(i%36).ToString();
                 product.ProductDescription = "ruuvi";
-                product.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
+                product.ShelfCode = random.Next(43).ToString(); // hyllypaikka, jossa monta lavaa
                 product.Amount = 20000;
                 product.PackageSize = 150;
                 product.InsertionDate = DateTime.Now;
@@ -447,9 +480,9 @@ namespace Error
             order.Customer = "Oy Asiakas Ab";
             order.RequestedShippingDate = DateTime.Today;
             order.Lines = new List<OrderLine>(2);
-            order.Lines.Add(new OrderLine { ProductCode = "27", Amount = 473 });
-            order.Lines.Add(new OrderLine { ProductCode = "35", Amount = 3473 });
-            order.Lines.Add(new OrderLine { ProductCode = "5", Amount = 3373 });
+            order.Lines.Add(new OrderLine { ProductCode = "asd" + "27", Amount = 473 });
+            order.Lines.Add(new OrderLine { ProductCode = "asd" + "35", Amount = 3473 });
+            order.Lines.Add(new OrderLine { ProductCode = "asd" + "5", Amount = 3373 });
             orders.Add(order);
 
             return orders;
