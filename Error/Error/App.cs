@@ -18,7 +18,6 @@ using Microsoft.Xna.Framework.Input.Touch;
 /* TODO
  esteet, jotka eiv‰t tuotteita
  lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
- A* ei toimi ihan oikein, joskus menn‰‰n ruudun verran sivuun
 */
 
 /* Toimivat ominaisuudet:
@@ -40,7 +39,7 @@ namespace Error
         Random random;
 
         Texture2D blankTexture;
-        Screen currentScreen = Screen.StartScreen;
+        Stack<Screen> _navigationStack;
         Color buttonColor1 = Color.CornflowerBlue;
         Color dataStateColor = Color.Red;
         Rectangle testButton = new Rectangle(100, 600, 280, 90);
@@ -112,10 +111,10 @@ namespace Error
         protected override void Initialize()
         {
             TouchPanel.EnabledGestures = GestureType.FreeDrag | GestureType.Tap;
-
             blankTexture = new Texture2D(GraphicsDevice, 1, 1);
             blankTexture.SetData(new[] { Color.White });
-
+            _navigationStack = new Stack<Screen>(8);
+            _navigationStack.Push(Screen.StartScreen);
             base.Initialize();
         }
 
@@ -155,13 +154,22 @@ namespace Error
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            switch (currentScreen)
+            // back arrow
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
+            {
+                if (_navigationStack.Count > 0)
+                {
+                    _navigationStack.Pop();
+                }
+                else
+                {
+                    this.Exit();
+                }
+            }
+
+            switch (_navigationStack.Peek())
             {
                 case Screen.StartScreen:
-                    // Allows the game to exit
-                    if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
-                        this.Exit();
-
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -175,7 +183,7 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    currentScreen = Screen.Test;
+                                    _navigationStack.Push(Screen.Test);
                                     dataStateColor = Color.Red;
                                     while (true)
                                     {
@@ -196,7 +204,7 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    currentScreen = Screen.CollectingScreen;
+                                    _navigationStack.Push(Screen.CollectingScreen);
                                     dataStateColor = Color.Red;
                                     Point dropoffAstar;
                                     while (true)
@@ -228,13 +236,8 @@ namespace Error
                     }
                     break;
                 case Screen.Test:
-                    if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
-                        currentScreen = Screen.StartScreen;
                     break;
                 case Screen.CollectingScreen:
-                    if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
-                        currentScreen = Screen.StartScreen;
-
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -252,7 +255,7 @@ namespace Error
                                 }
                                 else if (showMapButton.Contains(gesture.Position))
                                 {
-                                    currentScreen = Screen.Map;
+                                    _navigationStack.Push(Screen.Map);
                                     var points = new List<Point>(0);
                                     var products = Storage.GetByProductCode(_collectingData.CurrentLine.ProductCode);
                                     foreach (var p in products)
@@ -270,8 +273,6 @@ namespace Error
                     }
                     break;
                 case Screen.Map:
-                    if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
-                        currentScreen = Screen.CollectingScreen;
                     break;
             }
 
@@ -324,7 +325,7 @@ namespace Error
         protected override void Draw(GameTime gameTime)
         {
             //if (!graphicsChanged) return; // save battery life
-            switch (currentScreen)
+            switch (_navigationStack.Peek())
             {
                 case Screen.StartScreen:
                     GraphicsDevice.Clear(Color.White);
@@ -502,7 +503,8 @@ namespace Error
         public void ShowError(string message)
         {
             errorText = message;
-            currentScreen = Screen.StartScreen;
+            _navigationStack.Clear();
+            _navigationStack.Push(Screen.StartScreen);
         }
     }
 
