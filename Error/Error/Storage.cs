@@ -104,6 +104,24 @@ namespace Error
             }
             return items[minIndex];
         }
+        public List<Product> SearchText(string txt)
+        {
+            var products = from p in Products where p.ProductCode == txt select p;
+            products = products.Union(from p in Products where p.ProductDescription == txt select p);
+            products = products.Union(from p in Products where p.PalletCode == txt select p);
+            products = products.Union(from p in Products where p.ShelfCode == txt select p);
+            // remove duplicates
+            return products.Distinct().ToList();
+        }
+        public List<Product> SearchPartialText(string txt)
+        {
+            var products = from p in Products where p.ProductCode.Contains(txt) select p;
+            products = products.Union(from p in Products where p.ProductDescription.Contains(txt) select p);
+            products = products.Union(from p in Products where p.PalletCode.Contains(txt) select p);
+            products = products.Union(from p in Products where p.ShelfCode.Contains(txt) select p);
+            // remove duplicates
+            return products.Distinct().ToList();
+        }
     }
 
     // saapuu lavallinen tavaraa -> new DataBaseEntry()
