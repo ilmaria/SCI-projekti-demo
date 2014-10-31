@@ -1,7 +1,6 @@
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System.Collections.Generic;
-using System;
 
 namespace Error
 {
@@ -91,8 +90,8 @@ namespace Error
         /// <param name="scale"></param>
         public static void DrawStringCentered(this SpriteBatch sb, SpriteFont font, string text, Rectangle rect, Color color, float scale)
         {
-            if (text == null) return;
-            Vector2 textSize = (font.MeasureString(text)) * scale;
+            if (text == null || font == null) return;
+            Vector2 textSize = font.MeasureString(text) * scale;
             Vector2 position = new Vector2(rect.X, rect.Y) + new Vector2(rect.Width - textSize.X, rect.Height - textSize.Y) * 0.5f;
             sb.DrawString(font, text, position, color, scale, 0f);
         }

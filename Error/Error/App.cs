@@ -177,7 +177,6 @@ namespace Error
                                     }
                                     currentScreen = Screen.Test;
                                     dataStateColor = Color.Red;
-
                                     while (true)
                                     {
                                         start = new Point(random.Next(Storage.Map.SizeX), random.Next(Storage.Map.SizeY));
@@ -328,25 +327,16 @@ namespace Error
             switch (currentScreen)
             {
                 case Screen.StartScreen:
-                    GraphicsDevice.Clear(Color.WhiteSmoke);
+                    GraphicsDevice.Clear(Color.White);
                     spriteBatch.Begin();
                     spriteBatch.DrawStringCentered(font, "Error", new Rectangle(0, 0, 480, 120), Color.Black, 1f);
-
-                    spriteBatch.Draw(blankTexture, testButton, buttonColor1);
-                    spriteBatch.DrawStringCentered(font, "testi", testButton, Color.Black, 1f);
-
-                    spriteBatch.Draw(blankTexture, startCollectingButton, buttonColor1);
-                    spriteBatch.DrawStringCentered(font, "Aloita keräily", startCollectingButton, Color.Black, 1f);
-
-                    spriteBatch.Draw(blankTexture, readDataButton, dataStateColor);
-                    spriteBatch.DrawStringCentered(font, "Lue tiedot", readDataButton, Color.Black, 1f);
-
+                    DrawTextButton(testButton, "testi");
+                    DrawTextButton(startCollectingButton, "Aloita keräily");
+                    DrawTextButton(readDataButton, "Lue data");
                     if (errorText != null)
                     {
-                        var btn = new Rectangle(50, 200, 380, 60);
-                        spriteBatch.DrawStringCentered(font, "Virhe: " + errorText, btn, Color.Black, 0.6f);
+                        spriteBatch.DrawStringCentered(font, "Virhe: " + errorText, new Rectangle(50, 200, 380, 60), Color.Black, 0.6f);
                     }
-
                     spriteBatch.End();
                     break;
                 case Screen.Test:
@@ -363,7 +353,7 @@ namespace Error
                     break;
                 case Screen.CollectingScreen:
                     GraphicsDevice.Clear(Color.White);
-                    spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+                    spriteBatch.Begin();
                     Order order = _collectingData.CurrentOrder;
                     if (order != null)
                     {
@@ -379,11 +369,8 @@ namespace Error
                         spriteBatch.DrawStringCentered(font, "Tuotekoodi: " + product.ProductCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
                     }
 
-                    spriteBatch.Draw(blankTexture, nextLineButton, buttonColor1);
-                    spriteBatch.DrawStringCentered(font, "Seuraava rivi", nextLineButton, Color.Black, 1f);
-
-                    spriteBatch.Draw(blankTexture, goPackButton, buttonColor1);
-                    spriteBatch.DrawStringCentered(font, "Pakkaamaan", goPackButton, Color.Black, 1f);
+                    DrawTextButton(nextLineButton, "Seuraava rivi");
+                    DrawTextButton(goPackButton, "pakkaamaan");
 
                     DrawIconButton(showMapButton, "kartta", mapIcon);
                     DrawIconButton(orderInfoButton, "tiedot", listIcon);
@@ -408,6 +395,13 @@ namespace Error
             spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
             spriteBatch.Draw(icon, rect, Color.DarkSlateGray);
             spriteBatch.DrawStringCentered(font, text, textrect, Color.DarkSlateGray, 0.62f);
+        }
+        void DrawTextButton(Rectangle touchArea, string text)
+        {
+            spriteBatch.Draw(blankTexture, touchArea, Color.DarkSlateGray);
+            touchArea.Inflate(-2, -2);
+            spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
+            spriteBatch.DrawStringCentered(font, text, touchArea, Color.DarkSlateGray, 1f);
         }
 
         Storage ReadWareHouseData()
