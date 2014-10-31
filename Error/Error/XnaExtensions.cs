@@ -91,9 +91,9 @@ namespace Error
         /// <param name="scale"></param>
         public static void DrawStringCentered(this SpriteBatch sb, SpriteFont font, string text, Rectangle rect, Color color, float scale)
         {
-            if (sb == null || text == null) return;
+            if (text == null) return;
             Vector2 textSize = (font.MeasureString(text)) * scale;
-            Vector2 position = new Vector2(rect.X, rect.Y) + new Vector2(rect.Width - textSize.X, rect.Height - textSize.Y) / 2f;
+            Vector2 position = new Vector2(rect.X, rect.Y) + new Vector2(rect.Width - textSize.X, rect.Height - textSize.Y) * 0.5f;
             sb.DrawString(font, text, position, color, scale, 0f);
         }
 
@@ -117,7 +117,7 @@ namespace Error
         }
         public static Vector3 Center(this BoundingBox box)
         {
-            return (box.Max + box.Min) / 2f;
+            return (box.Max + box.Min) * 0.5f;
         }
     }
 }
