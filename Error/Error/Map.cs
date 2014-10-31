@@ -53,8 +53,9 @@ namespace Error
         {
             Point p = PhysicalToInternalCoordinates(b.Center());
             int offset = 2;
-            List<Point> possiblePoints = new List<Point>(25);
-            while (true)
+            Point bestPoint = new Point(int.MaxValue, int.MaxValue);
+            float minDist = float.MaxValue;
+            while (offset < 200)// TODO parempaa
             {
                 for (int x = p.X - offset; x < p.X + offset; x++)
                 {
@@ -62,20 +63,20 @@ namespace Error
                     {
                         if (IsTraversable(new Point(x, y)))
                         {
-                            possiblePoints.Add(new Point(x, y));
+                            int dx = x - p.X, dy = y - p.Y;
+                            float dist = dx * dx + dy * dy;
+                            if (dist < minDist)
+                            {
+                                minDist = dist;
+                                bestPoint = new Point(x, y);
+                            }
                         }
                     }
                 }
-                if (possiblePoints.Count == 0)
-                {
-                    if (offset * _resolutionInMetres > 100f) return Point.Zero;// error
-                    offset++;
-                    continue;
-                }
-                //order by distance
-                possiblePoints.OrderBy(pt => (pt.X - p.X) * (pt.X - p.X) + (pt.Y - p.Y) * (pt.Y - p.Y));
-                return possiblePoints[0];
+                if (minDist != float.MaxValue) break;
+                offset += 2;
             }
+            return bestPoint;
         }
     }
     public struct MapNode

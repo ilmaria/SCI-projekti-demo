@@ -11,18 +11,19 @@ using Microsoft.Xna.Framework.Input.Touch;
 //henri: varaston tietorakenne, järjestyksen optimointi
 
 /*
-    Ilmari ks ReadWareHouseData(), ReadOrders(), class Product, class Order.cs
+    Ilmari ks ReadWareHouseData(), ReadOrders(), class Product, Order.cs
     sovellukseen tarvittaneen mahdollisuus hakea tuotteita tuotekoodilla. Data saadaan Storage.GetByProductCode(), UI puuttuu
 */
 
 /* TODO
  esteet, jotka eivät tuotteita
  lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
- esim.
+ A* ei toimi ihan oikein, joskus mennään ruudun verran sivuun
 */
 
 /* Toimivat ominaisuudet:
- * 
+ * Jos tuotetta useissa sijainneissa, lähimmän sijainnin löytäminen jossa riittävästi tuotetta
+ * Tilausten rivien järjestäminen siten, että kerätessä koko tilaus kerralla on kokonaismatka lyhin mahdollinen
  */
 
 
@@ -73,6 +74,7 @@ namespace Error
         {
             get { return _app; }
         }
+        bool graphicsChanged = true;
 
 
         public App()
@@ -207,7 +209,7 @@ namespace Error
                                     // oikeasti tämä on tietysti tiedossa etukäteen
                                     _packingPosition = Storage.Map.InteralToPhysicalCoordinates(dropoffAstar);
 
-                                    //OptimizeOrders(_orders, _packingPosition, _packingPosition);
+                                    OptimizeOrders(_orders, _packingPosition, _packingPosition);
 
                                     _collectingData = new CollectingData();
                                     // TODO check
@@ -252,9 +254,17 @@ namespace Error
                                 else if (showMapButton.Contains(gesture.Position))
                                 {
                                     currentScreen = Screen.Map;
-                                    UpdateMapTexture(Storage.Map, _collectingData.Path,
-                                        Storage.Map.PhysicalToInternalCoordinates(_collectingData.CurrentProduct.BoundingBox.Center()),
-                                        _collectingData.CurrentLocation_AStar);
+                                    var points = new List<Point>(0);
+                                    var products = Storage.GetByProductCode(_collectingData.CurrentLine.ProductCode);
+                                    foreach (var p in products)
+                                    {
+                                        points.Add(Storage.Map.PhysicalToInternalCoordinates(p.BoundingBox.Center()));
+                                    }
+                                    UpdateMapTexture(Storage.Map, _collectingData.Path, points.ToArray());
+
+                                    //UpdateMapTexture(Storage.Map, _collectingData.Path,
+                                    //    Storage.Map.PhysicalToInternalCoordinates(_collectingData.CurrentProduct.BoundingBox.Center()),
+                                    //    _collectingData.CurrentLocation_AStar);
                                 }
                                 break;
                         }
@@ -314,6 +324,7 @@ namespace Error
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
+            //if (!graphicsChanged) return; // save battery life
             switch (currentScreen)
             {
                 case Screen.StartScreen:
@@ -396,7 +407,7 @@ namespace Error
             touchArea.Inflate(-1, -2);
             spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
             spriteBatch.Draw(icon, rect, Color.DarkSlateGray);
-            spriteBatch.DrawStringCentered(font, text, textrect, Color.DarkSlateGray, 0.6f);
+            spriteBatch.DrawStringCentered(font, text, textrect, Color.DarkSlateGray, 0.62f);
         }
 
         Storage ReadWareHouseData()
@@ -406,7 +417,7 @@ namespace Error
             for (int i = 0; i < 200; i++)
             {
                 var product = new Product();
-                product.ProductCode = i.ToString();
+                product.ProductCode = (i%36).ToString();
                 product.ProductDescription = "ruuvi";
                 product.ShelfCode = "1005"; // hyllypaikka, jossa monta lavaa
                 product.Amount = 20000;
@@ -445,10 +456,6 @@ namespace Error
 
             return orders;
         }
-        void OptimizeOrders(List<Order> orders)
-        {
-            
-        }
         void OptimizeOrders(List<Order> orders, Vector3 startPosition, Vector3 dropoffPosition)
         {
             // optimize order of products in orders
@@ -465,16 +472,16 @@ namespace Error
         {
             // jos kerätään kerralla monta tilausta, ei dropoff-sijainnilla ole väliä
             // create all possible orders in which products can be picked (num_products!)
-            var permutations = (OrderLine[][])GetPermutations<OrderLine>(order.Lines, order.Lines.Count);
+            var permutations = Utils.GetPermutations<OrderLine>(order.Lines.ToArray());
 
             // calculate traversal times for all permutations
-            float[] costs = new float[Factorial(order.Lines.Count)];
+            float minTime = float.MaxValue;
+            int bestIndex = 0;
             for (int iPermutation = 0; iPermutation < permutations.GetLength(0); iPermutation++)
             {
                 // start at current physical location
                 Point currentLocation = Storage.Map.PhysicalToInternalCoordinates(startPosition);
-                float time;
-
+                float time = 0;
                 for (int iLine = 0; iLine < order.Lines.Count; iLine++)
                 {
                     OrderLine line = permutations[iPermutation][iLine];
@@ -485,48 +492,18 @@ namespace Error
                     // esteetön sijanti josta tuotetta voidaan kerätä, ts. varastopaikan vieressä
                     Point collectingLocation = Storage.Map.FindCollectingPoint(product.BoundingBox);
 
-                    Storage.PathFinder.FindPath(currentLocation, collectingLocation, out time);
-                    costs[iPermutation] += time;
+                    float dt;
+                    Storage.PathFinder.FindPath(currentLocation, collectingLocation, out dt);
+                    time += dt;
                     currentLocation = collectingLocation;
                 }
+                if (time < minTime)
+                {
+                    minTime = time;
+                    bestIndex = iPermutation;
+                }
             }
-
-            // find permutation with lowest traversal time
-            float minCost = costs.Min();
-            int minIndex = costs.ToList().IndexOf(minCost);
-            order.Lines = permutations[minIndex].ToList();
-        }
-
-        //int[][] CreatePermutations(int[] items)
-        //{
-        //    int[][] permutations = new int[Factorial(items.Length)][];
-        //    for (int perm = 0; perm < permutations.GetLength(0); perm++)
-        //    {
-        //        permutations[perm] = new int[items.Length];
-        //    }
-
-        //    return permutations;
-        //}
-
-
-        // all length! possible orders
-        static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
-        {
-            if (length == 1) return (IEnumerable<IEnumerable<T>>)list.Select(t => new T[] { t });
-
-            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new T[] { t2 }));
-        }
-        static int Factorial(int x)
-        {
-            if (x <= 0) return 1;
-            int factorial = 1;
-            while (x > 1)
-            {
-                factorial *= x;
-                x--;
-            }
-            return factorial;
+            order.Lines = permutations[bestIndex].ToList();
         }
         public void ShowError(string message)
         {
@@ -542,16 +519,7 @@ namespace Error
         CollectingScreen,
         Map
     }
-    public struct ComparableIndex : IComparable<ComparableIndex>
-    {
-        public int Index;
-        public float Cost;
 
-        int IComparable<ComparableIndex>.CompareTo(ComparableIndex other)
-        {
-            return Cost.CompareTo(other.Cost);
-        }
-    }
     public class CollectingData
     {
         public List<Point> Path;

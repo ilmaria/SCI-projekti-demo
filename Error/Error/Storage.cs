@@ -89,15 +89,20 @@ namespace Error
             //if(items.Count == 0) tuotetta ei varastossa
 
             // find nearest product
-            BinaryHeap<ComparableIndex> indices = new BinaryHeap<ComparableIndex>(items.Count);
+            int minIndex = 0;
+            float minTime = float.MaxValue;
             for (int i = 0; i < items.Count; i++)
             {
                 Point collectionPoint = Map.FindCollectingPoint(items[i].BoundingBox);
                 float time;
                 PathFinder.FindPath(location, collectionPoint, out time);
-                indices.Add(new ComparableIndex { Index = i, Cost = time });
+                if (time < minTime)
+                {
+                    minTime = time;
+                    minIndex = i;
+                }
             }
-            return items[indices.Peek().Index];
+            return items[minIndex];
         }
     }
 
