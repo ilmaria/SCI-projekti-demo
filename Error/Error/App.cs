@@ -43,7 +43,7 @@ namespace Error
         Random random;
 
         Texture2D blankTexture;
-        Stack<Screens> _navigationStack;
+        Stack<Screen> _navigationStack;
         Rectangle testButton = new Rectangle(100, 600, 280, 90);
         Rectangle readDataButton = new Rectangle(100, 400, 280, 90);
         Rectangle startCollectingButton = new Rectangle(100, 500, 280, 90);
@@ -111,11 +111,15 @@ namespace Error
         /// </summary>
         protected override void Initialize()
         {
-            TouchPanel.EnabledGestures = GestureType.FreeDrag | GestureType.Tap;
+            TouchPanel.EnabledGestures = 
+                GestureType.FreeDrag |
+                GestureType.Tap |
+                GestureType.VerticalDrag |
+                GestureType.Flick;
             blankTexture = new Texture2D(GraphicsDevice, 1, 1);
             blankTexture.SetData(new[] { Color.White });
-            _navigationStack = new Stack<Screens>(8);
-            _navigationStack.Push(Screens.Start);
+            _navigationStack = new Stack<Screen>();
+            _navigationStack.Push(new Screen("Start"));
             base.Initialize();
         }
 
@@ -168,9 +172,10 @@ namespace Error
                 }
             }
 
-            switch (_navigationStack.Peek())
+            Screen screen = _navigationStack.Peek();
+            switch (screen.Name)
             {
-                case Screens.Start:
+                case "Start":
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -184,7 +189,7 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    _navigationStack.Push(Screens.Test);
+                                    _navigationStack.Push(new Screen("Test"));
 
                                     Point start = new Point(int.MinValue, int.MinValue);
                                     Point goal = new Point(int.MinValue, int.MinValue);
@@ -207,7 +212,7 @@ namespace Error
                                         ShowError("Dataa ei luettu");
                                         return;
                                     }
-                                    _navigationStack.Push(Screens.Collecting);
+                                    _navigationStack.Push(new Screen("Collecting"));
                                     Point dropoffAstar;
                                     while (true)
                                     {
@@ -241,9 +246,9 @@ namespace Error
                         }
                     }
                     break;
-                case Screens.Test:
+                case "Test":
                     break;
-                case Screens.Collecting:
+                case "Collecting":
                     while (TouchPanel.IsGestureAvailable)
                     {
                         GestureSample gesture = TouchPanel.ReadGesture();
@@ -262,7 +267,7 @@ namespace Error
                                 else if (searchButton.Contains(gesture.Position))
                                 {
                                     // todo haku myös tilauksista?
-                                    _navigationStack.Push(Screens.Search);
+                                    _navigationStack.Push(new Screen("Search"));
                                     Input.ShowKeyboard("hae jotain", "", "ruuvi");
                                     var foundProducts = Storage.SearchText(Input.GetTypedText());
                                     searchResult = new List<string>(0);
@@ -276,7 +281,7 @@ namespace Error
                                 }
                                 else if (showMapButton.Contains(gesture.Position))
                                 {
-                                    _navigationStack.Push(Screens.Map);
+                                    _navigationStack.Push(new Screen("Map"));
                                     var points = new List<Point>(0);
                                     var products = Storage.GetByProductCode(_collectingData.CurrentLine.ProductCode);
                                     foreach (var p in products)
@@ -293,7 +298,21 @@ namespace Error
                         }
                     }
                     break;
-                case Screens.Map:
+                case "Search":
+                    while (TouchPanel.IsGestureAvailable)
+                    {
+                        GestureSample gesture = TouchPanel.ReadGesture();
+                        switch (gesture.GestureType)
+                        {
+                            case GestureType.VerticalDrag:
+                                // move the search screen vertically by the drag delta
+                                // amount.
+                                screen.OffsetY += gesture.Delta.Y;
+                                break;
+                        }
+                    }
+                    break;
+                case "Map":
                     break;
             }
 
@@ -347,9 +366,10 @@ namespace Error
         {
             //if (!graphicsChanged) return; // save battery life
             GraphicsDevice.Clear(Color.White);
-            switch (_navigationStack.Peek())
+            Screen screen = _navigationStack.Peek();
+            switch (screen.Name)
             {
-                case Screens.Start:
+                case "Start":
                     spriteBatch.Begin();
                     spriteBatch.DrawStringCentered(font, "Error", new Rectangle(0, 0, 480, 120), Color.Black, 1f);
                     DrawTextButton(testButton, "testi");
@@ -365,17 +385,17 @@ namespace Error
                     }
                     spriteBatch.End();
                     break;
-                case Screens.Test:
+                case "Test":
                     spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
                     spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
                     spriteBatch.End();
                     break;
-                case Screens.Map:
+                case "Map":
                     spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
                     spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
                     spriteBatch.End();
                     break;
-                case Screens.Collecting:
+                case "Collecting":
                     spriteBatch.Begin();
                     Order order = _collectingData.CurrentOrder;
                     if (order != null)
@@ -403,8 +423,8 @@ namespace Error
 
                     spriteBatch.End();
                     break;
-                case Screens.Search:
-                    spriteBatch.Begin();
+                case "Search":
+                    spriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(screen.OffsetX, screen.OffsetY, 0));
                     var r = new Rectangle(20, 100, 440, 80);
                     if (searchResult != null)
                     {
@@ -540,7 +560,7 @@ namespace Error
         {
             errorText = message;
             _navigationStack.Clear();
-            _navigationStack.Push(Screens.Start);
+            _navigationStack.Push(new Screen("Start"));
         }
     }
 
@@ -557,6 +577,22 @@ namespace Error
     // void draw
     // jolloin App.Update(){_navigationStack.Peek().ProcessInput(touchCollection)}
     // ja sama draw
+
+    public class Screen
+    {
+        // Offset is for scrolling
+        // TODO: implement MaxOffset, add kinetic scrolling
+        public string Name = null;
+        public float MaxOffsetX = 0;
+        public float MaxOffsetY = 0;
+        public float OffsetX = 0;
+        public float OffsetY = 0;
+
+        public Screen(string name)
+        {
+            Name = name;
+        }
+    }
 
     public class CollectingData
     {
