@@ -3,38 +3,25 @@ using System.Collections.Generic;
 
 namespace Error
 {
+    // todo order ja line avaimet, eik‰ pointtereita
     public class Order
     {
+        // information that needs to be imported
         public List<OrderLine> Lines;
         public string Customer;
         public DateTime RequestedShippingDate;
-        public OrderState State = OrderState.Default;
+
+        //information that is created and managed by the app
+        public uint State = STATE.DEFAULT;
+        public float Priority; // nimi vaihtunee, mutta arvo on "monenko sekunnin p‰‰st‰ tilauksen t‰ytyy olla valmis"
     }
     public class OrderLine
     {
-        public string ProductCode; // asfasg4s53sdgsa
-        public int Amount; // 500 = toimitettava m‰‰r‰
-        public LineState State = LineState.Default;
+        // information that needs to be imported
+        public string ProductCode;
+        public int Amount;
+
+        //information that is created and managed by the app
+        public uint State = STATE.DEFAULT;//ehk‰ pois
     }
-    [Flags]
-    public enum OrderState
-    {
-        Default,
-        Received,
-        CollectingStarted,
-        ProductsMissing,
-        Collected,
-        Packed,
-        Shipped,
-        Canceled
-    }
-    [Flags]
-    public enum LineState
-    {
-        Default,
-        ProductMissing,
-        Collected
-    }
-    // vai public const uint STATE_MISSING = 1u << 1 jne
-    // voisi k‰ytt‰‰ kaikkialla sovelluksessa monessa tarkoituksessa, esim. ker‰ily/optimointifuntioissa paluuarvona
 }

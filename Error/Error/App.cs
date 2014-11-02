@@ -3,79 +3,78 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Phone.Shell;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
-using Microsoft.Xna.Framework.GamerServices;
+
+/* Toimivat ominaisuudet:
+ * Jos tuotetta useissa sijainneissa, lähimmän sijainnin löytäminen jossa riittävästi tuotetta
+ * Tilausten rivien järjestäminen siten, että kerätessä koko tilaus kerralla on kokonaismatka lyhin mahdollinen
+ * Tekstihaku varastosta toimii periaatteessa, myös osittaisilla teksteillä
+ * Keräily sovelluksen ohjaamana toimii
+ * Tilausten järjestely alkaa ehkä osittain hahmottua
+ */
 
 //ilmari : ui, datan tuonti
 //henri: varaston tietorakenne, järjestyksen optimointi
-
-/*
-    Ilmari ks ReadWareHouseData(), ReadOrders(), class Product, Order.cs
-    sovellukseen tarvittaneen mahdollisuus hakea tuotteita tuotekoodilla. Data saadaan Storage.GetByProductCode(), UI puuttuu
-*/
 
 /* TODO
  esteet, jotka eivät tuotteita
  lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
  * tekstihakuun myös tilaukset? haku ja muutkin 4 alarivin toimintoa myös aloitussivulle? hakutulosten scrollaaminen,
  * nyt osa ei näy
+ * entäs kun kesken keräyksen joku on napannut viimeiset varastosta?
+ * optimointi niin, että kaikki työntekijöt eivät ruuhkassa samassa läjässä
+ * keräily monesta sijainnista kun yhdessä ei tarpeeksi
+ * tilaukset ei järjesty päivämäärän mukaan vaikka pitäis
+ * reitti ei näy kartalla kun on just siirrytty seuraavaan riviin
 */
 
-/* Toimivat ominaisuudet:
- * Jos tuotetta useissa sijainneissa, lähimmän sijainnin löytäminen jossa riittävästi tuotetta
- * Tilausten rivien järjestäminen siten, että kerätessä koko tilaus kerralla on kokonaismatka lyhin mahdollinen
- * Tekstihaku varastosta toimii periaatteessa
- */
-
+//isoja puuttuvia ominaisuuksia:
+//datan tuonti
+//Hyllyjen optimaalinen täyttö tuotteilla
+// ui osia
+// tilausten välinen järjestely
 
 namespace Error
 {
-    /// <summary>
-    /// This is the main type for your game
-    /// </summary>
     public class App : Microsoft.Xna.Framework.Game
     {
-        GraphicsDeviceManager graphics;
-        SpriteBatch spriteBatch;
-        SpriteFont font;
-        Random random;
+        #region fields and properties
+        // frequently needed stuff is now public and static in Error-namespace
+        internal static Random Random { get; private set; }
+        internal static SpriteFont Font { get; private set; }
+        internal static Texture2D Pixel { get; private set; }
+        internal static SpriteBatch SpriteBatch { get; private set; }
+        internal static SamplerState PointSampler { get; private set; }
+        internal static string Message;
+        internal static Boolean IsDataImported;
 
-        Texture2D blankTexture;
-        Stack<Screen> _navigationStack;
-        Rectangle testButton = new Rectangle(100, 600, 280, 90);
-        Rectangle readDataButton = new Rectangle(100, 400, 280, 90);
-        Rectangle startCollectingButton = new Rectangle(100, 500, 280, 90);
-        Rectangle nextLineButton = new Rectangle(100, 500, 280, 75);
-        Rectangle goPackButton = new Rectangle(100, 580, 280, 75);
-        Rectangle showMapButton = new Rectangle(0, 680, 120, 120);
-        Rectangle orderInfoButton = new Rectangle(120, 680, 120, 120);
-        Rectangle makeChangeButton = new Rectangle(240, 680, 120, 120);
-        Rectangle searchButton = new Rectangle(360, 680, 120, 120);
-        string errorText = null;
-        Boolean isDataImported = false;
-        List<string> searchResult;
-
-        Texture2D mapIcon, listIcon, changeIcon, searchIcon;
-        Color[] mapColors;
-        Texture2D mapTexture;
-        SamplerState pointSampler;
-
+        public OrderManager OrderManager { get; private set; }
         public Storage Storage { get; private set; }
-        List<Order> _orders;
+        public CollectingData CollectingData { get; private set; }
 
+        GraphicsDeviceManager graphics;
+        Stack<Screen> navigationStack;
+        Screen collectingScreen;
+        Screen startScreen;
+        Screen searchScreen;
+        Screen mapScreen;
+        Texture2D mapIcon, listIcon, changeIcon, searchIcon;
+
+        // tästä eteenpäin loputkin kentät voisi siivota
+        Color[] mapColors;// --> map-luokkaan
+        Texture2D mapTexture;
         // pakkauspöydän sijainti fyysisissä koordinaateissa (ei A* - koordinaateissa)
-        Vector3 _packingPosition;
-        CollectingData _collectingData;
+        Vector3 _packingPosition;// --> storage-luokkaan
 
         static App _app;
         public static App Instance
         {
             get { return _app; }
         }
-        bool graphicsChanged = true;
-
+        #endregion
 
         public App()
         {
@@ -114,12 +113,7 @@ namespace Error
             TouchPanel.EnabledGestures = 
                 GestureType.FreeDrag |
                 GestureType.Tap |
-                GestureType.VerticalDrag |
                 GestureType.Flick;
-            blankTexture = new Texture2D(GraphicsDevice, 1, 1);
-            blankTexture.SetData(new[] { Color.White });
-            _navigationStack = new Stack<Screen>();
-            _navigationStack.Push(new Screen("Start"));
             base.Initialize();
         }
 
@@ -130,17 +124,23 @@ namespace Error
         protected override void LoadContent()
         {
             // Create a new SpriteBatch, which can be used to draw textures.
-            spriteBatch = new SpriteBatch(GraphicsDevice);
-            font = Content.Load<SpriteFont>("SegoeWP");
+            SpriteBatch = new SpriteBatch(GraphicsDevice);
+            Font = Content.Load<SpriteFont>("SegoeWP");
             mapIcon = Content.Load<Texture2D>("mapIcon");
             listIcon = Content.Load<Texture2D>("listIcon");
             changeIcon = Content.Load<Texture2D>("changeIcon");
             searchIcon = Content.Load<Texture2D>("searchIcon");
-            random = new Random();
-            pointSampler = new SamplerState();
-            pointSampler.AddressU = TextureAddressMode.Clamp;
-            pointSampler.AddressV = TextureAddressMode.Clamp;
-            pointSampler.Filter = TextureFilter.Point;
+            Random = new Random();
+            PointSampler = new SamplerState();
+            PointSampler.AddressU = TextureAddressMode.Clamp;
+            PointSampler.AddressV = TextureAddressMode.Clamp;
+            PointSampler.Filter = TextureFilter.Point;
+            Pixel = new Texture2D(GraphicsDevice, 1, 1);
+            Pixel.SetData(new[] { Color.White });
+
+            SetupScreens();
+            navigationStack = new Stack<Screen>();
+            navigationStack.Push(startScreen);
         }
 
         /// <summary>
@@ -162,9 +162,9 @@ namespace Error
             // back arrow
             if ((!Guide.IsVisible) && GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
             {
-                if (_navigationStack.Count > 0)
+                if (navigationStack.Count > 1)
                 {
-                    _navigationStack.Pop();
+                    navigationStack.Pop();
                 }
                 else
                 {
@@ -172,151 +172,264 @@ namespace Error
                 }
             }
 
-            Screen screen = _navigationStack.Peek();
-            switch (screen.Name)
+            while (TouchPanel.IsGestureAvailable)
             {
-                case "Start":
-                    while (TouchPanel.IsGestureAvailable)
-                    {
-                        GestureSample gesture = TouchPanel.ReadGesture();
-                        switch (gesture.GestureType)
-                        {
-                            case GestureType.Tap:
-                                if (testButton.Contains(gesture.Position))
-                                {
-                                    if (_orders == null || Storage == null)
-                                    {
-                                        ShowError("Dataa ei luettu");
-                                        return;
-                                    }
-                                    _navigationStack.Push(new Screen("Test"));
-
-                                    Point start = new Point(int.MinValue, int.MinValue);
-                                    Point goal = new Point(int.MinValue, int.MinValue);
-                                    while (true)
-                                    {
-                                        start = new Point(random.Next(Storage.Map.SizeX), random.Next(Storage.Map.SizeY));
-                                        goal = new Point(random.Next(Storage.Map.SizeX), random.Next(Storage.Map.SizeY));
-                                        if (!Storage.Map[start.X, start.Y].IsTraversable) continue;
-                                        if (!Storage.Map[goal.X, goal.Y].IsTraversable) continue;
-                                        if (Storage.Map.Contains(start) && Storage.Map.Contains(goal) && start != goal) break;
-                                    }
-                                    float time;
-                                    var path = Storage.PathFinder.FindPath(start, goal, out time);
-                                    UpdateMapTexture(Storage.Map, path);
-                                }
-                                else if (startCollectingButton.Contains(gesture.Position))
-                                {
-                                    if (_orders == null || Storage == null)
-                                    {
-                                        ShowError("Dataa ei luettu");
-                                        return;
-                                    }
-                                    _navigationStack.Push(new Screen("Collecting"));
-                                    Point dropoffAstar;
-                                    while (true)
-                                    {
-                                        dropoffAstar = new Point(random.Next(Storage.Map.SizeX), random.Next(Storage.Map.SizeY));
-                                        if (!Storage.Map[dropoffAstar.X, dropoffAstar.Y].IsTraversable) continue;
-                                        if (Storage.Map.Contains(dropoffAstar)) break;
-                                    }
-                                    // oikeasti tämä on tietysti tiedossa etukäteen
-                                    _packingPosition = Storage.Map.InteralToPhysicalCoordinates(dropoffAstar);
-
-                                    OptimizeOrders(_orders, _packingPosition, _packingPosition);
-
-                                    _collectingData = new CollectingData();
-                                    // TODO check
-                                    _collectingData.CurrentOrder = _orders[0];
-                                    _collectingData.CurrentLocation_AStar = dropoffAstar;
-                                    _collectingData.CurrentLineIndex = -1;//...
-                                    _collectingData.SetNextLine();
-                                }
-                                else if (readDataButton.Contains(gesture.Position))
-                                {
-                                    Storage = ReadStorageData();
-                                    _orders = ReadOrders();
-                                    isDataImported = true;
-                                    if (errorText == "Dataa ei luettu")
-                                    {
-                                        errorText = null;
-                                    }
-                                }
-                                break;
-                        }
-                    }
-                    break;
-                case "Test":
-                    break;
-                case "Collecting":
-                    while (TouchPanel.IsGestureAvailable)
-                    {
-                        GestureSample gesture = TouchPanel.ReadGesture();
-                        switch (gesture.GestureType)
-                        {
-                            case GestureType.Tap:
-                                if (nextLineButton.Contains(gesture.Position))
-                                {
-                                    _collectingData.CollectCurrentLine();
-                                    _collectingData.SetNextLine();
-                                }
-                                else if (goPackButton.Contains(gesture.Position))
-                                {
-                                    // TODO
-                                }
-                                else if (searchButton.Contains(gesture.Position))
-                                {
-                                    // todo haku myös tilauksista?
-                                    _navigationStack.Push(new Screen("Search"));
-                                    Input.ShowKeyboard("hae jotain", "", "ruuvi");
-                                    var foundProducts = Storage.SearchText(Input.GetTypedText());
-                                    searchResult = new List<string>(0);
-                                    int line = 0;
-                                    foreach (var p in foundProducts)
-                                    {
-                                        searchResult.Add(line + "   " + p.ProductDescription +" "+p.ProductCode
-                                            + "  Hylly: " + p.ShelfCode + "  Määrä: " + p.Amount);
-                                        line++;
-                                    }
-                                }
-                                else if (showMapButton.Contains(gesture.Position))
-                                {
-                                    _navigationStack.Push(new Screen("Map"));
-                                    var points = new List<Point>(0);
-                                    var products = Storage.GetByProductCode(_collectingData.CurrentLine.ProductCode);
-                                    foreach (var p in products)
-                                    {
-                                        points.Add(Storage.Map.PhysicalToInternalCoordinates(p.BoundingBox.Center()));
-                                    }
-                                    UpdateMapTexture(Storage.Map, _collectingData.Path, points.ToArray());
-
-                                    //UpdateMapTexture(Storage.Map, _collectingData.Path,
-                                    //    Storage.Map.PhysicalToInternalCoordinates(_collectingData.CurrentProduct.BoundingBox.Center()),
-                                    //    _collectingData.CurrentLocation_AStar);
-                                }
-                                break;
-                        }
-                    }
-                    break;
-                case "Search":
-                    while (TouchPanel.IsGestureAvailable)
-                    {
-                        GestureSample gesture = TouchPanel.ReadGesture();
-                        switch (gesture.GestureType)
-                        {
-                            case GestureType.VerticalDrag:
-                                // move the search screen vertically by the drag delta
-                                // amount.
-                                screen.OffsetY += gesture.Delta.Y;
-                                break;
-                        }
-                    }
-                    break;
-                case "Map":
-                    break;
+                navigationStack.Peek().Update(TouchPanel.ReadGesture());
             }
 
             base.Update(gameTime);
+        }
+
+        /// <summary>
+        /// This is called when the game should draw itself.
+        /// </summary>
+        /// <param name="gameTime">Provides a snapshot of timing values.</param>
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.White);
+
+            navigationStack.Peek().Draw();
+
+            base.Draw(gameTime);
+        }
+
+        void SetupScreens()
+        {
+            startScreen = new StartScreen();
+            searchScreen = new SearchScreen();
+            mapScreen = new MapScreen();
+            collectingScreen = new CollectingScreen();
+
+            #region Buttons
+            Button readDataButton = new Button
+            {
+                Text = "Lue data",
+                Name = "readData",
+                TouchArea = new Rectangle(60, 400, 360, 90),
+                Click = delegate()
+                {
+                    Storage = ReadStorageData();
+                    ReadOrders();
+
+                    // todo
+                    Point dropoffAstar;
+                    while (true)
+                    {
+                        dropoffAstar = new Point(Random.Next(Storage.Map.SizeX), Random.Next(Storage.Map.SizeY));
+                        if (!Storage.Map[dropoffAstar.X, dropoffAstar.Y].IsTraversable) continue;
+                        if (Storage.Map.Contains(dropoffAstar)) break;
+                    }
+                    // oikeasti tämä on tietysti tiedossa etukäteen
+                    _packingPosition = Storage.Map.InternalToPhysicalCoordinates(dropoffAstar);
+                    Storage.PackingLocation_AStar = dropoffAstar;
+
+                    IsDataImported = true;
+                    ShowMessage("Data luettu");
+                }
+            };
+            Button nextLineButton = new Button
+            {
+                Name = "nextLine",
+                Text = "Seuraava rivi",
+                TouchArea = new Rectangle(60, 500, 360, 75),
+                Click = delegate()
+                {
+                    CollectingData.ShowLineInfo = true;
+                    CollectingData.ShowOrderInfo = true;
+                    CollectingData.SetNextLine();
+                    collectingScreen.Buttons["collected"].Visible = true;
+                    collectingScreen.Buttons["nextLine"].Visible = false;
+                    collectingScreen.Buttons["nextOrder"].Visible = false;
+                    collectingScreen.Buttons["packOrder"].Visible = false;
+                    collectingScreen.Buttons["packed"].Visible = false;
+                }
+            };
+            Button packOrderButton = new Button
+            {
+                Name = "packOrder",
+                Text = "vie pakattavaksi",
+                TouchArea = new Rectangle(60, 580, 360, 75),
+                Click = delegate()
+                {
+                    CollectingData.ShowLineInfo = false;
+                    CollectingData.ShowOrderInfo = true;
+                    collectingScreen.Buttons["packOrder"].Visible = false;
+                    collectingScreen.Buttons["packed"].Visible = true;
+                    collectingScreen.Buttons["collected"].Visible = false;
+                    collectingScreen.Buttons["nextOrder"].Visible = false;
+                    collectingScreen.Buttons["nextLine"].Visible = false;
+                }
+            };
+            Button packedButton = new Button
+            {
+                Name = "packed",
+                Text = "valmis",//viety pakattavaksi/pakkauspisteelle
+                TouchArea = new Rectangle(60, 500, 360, 75),
+                Click = delegate()
+                {
+                    CollectingData.ShowLineInfo = false;
+                    CollectingData.ShowOrderInfo = false;
+                    CollectingData.CurrentLocation_AStar = Storage.Map.PhysicalToInternalCoordinates(_packingPosition);
+                    // check if there are orders to collect
+                    if(OrderManager.IsOrderAvailable())
+                    {
+                        collectingScreen.Buttons["nextOrder"].Visible = true;
+                        collectingScreen.Buttons["packed"].Visible = false;
+                    }
+                    else
+                    {
+                        ShowMessage("Ei kerättävissä olevia tilauksia");
+                        return;
+                    }
+                }
+            };
+            Button collectedButton = new Button
+            {
+                Name = "collected",
+                Text = "valmis",
+                TouchArea = new Rectangle(60, 500, 360, 75),
+                Click = delegate()
+                {
+                    CollectingData.ShowLineInfo = false;
+                    CollectingData.ShowOrderInfo = true;
+                    CollectingData.CollectCurrentLine();
+                    collectingScreen.Buttons["collected"].Visible = false;
+
+                    if (CollectingData.CurrentOrder.State == STATE.COLLECTED)
+                    {
+                        collectingScreen.Buttons["packOrder"].Visible = true;
+                        // check if there are orders to collect
+                        if(OrderManager.IsOrderAvailable())
+                        {
+                            collectingScreen.Buttons["nextOrder"].Visible = true;
+                        }
+                        else
+                        {
+                            collectingScreen.Buttons["nextOrder"].Visible = false;
+                        }
+                    }
+                    else
+                    {
+                        collectingScreen.Buttons["nextLine"].Visible = true;
+                        CollectingData.ShowLineInfo = false;
+                    }
+                }
+            };
+            Button nextOrderButton = new Button
+            {
+                Name = "nextOrder",
+                Text = "seuraava tilaus",
+                TouchArea = new Rectangle(60, 500, 360, 75),
+                Click = delegate()
+                {
+                    CollectingData.ShowLineInfo = true;
+                    CollectingData.ShowOrderInfo = true;
+                    CollectingData.SetOrder(
+                        OrderManager.GetNextToCollect(
+                        Storage.Map.InternalToPhysicalCoordinates(CollectingData.CurrentLocation_AStar),
+                        Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar)
+                        )
+                        );
+                    collectingScreen.Buttons["nextOrder"].Visible = false;
+                    collectingScreen.Buttons["packOrder"].Visible = false;
+                    collectingScreen.Buttons["nextLine"].Visible = false;
+                    collectingScreen.Buttons["packed"].Visible = false;
+                    collectingScreen.Buttons["collected"].Visible = true;
+                }
+            };
+            Button infoButton = new Button
+            {
+                Name = "info",
+                Text = "tiedot",
+                Icon = listIcon,
+                TouchArea = new Rectangle(120, 680, 120, 120),
+                Click = delegate() { /* TODO */}
+            };
+            Button changeButton = new Button
+            {
+                Name = "change",
+                Text = "muuta",
+                Icon = changeIcon,
+                TouchArea = new Rectangle(240, 680, 120, 120),
+                Click = delegate() { /* TODO */}
+            };
+            Button mapButton = new Button
+            {
+                Name = "map",
+                Text = "kartta",
+                Icon = mapIcon,
+                TouchArea = new Rectangle(0, 680, 120, 120),
+                Click = delegate()
+                {
+                    navigationStack.Push(mapScreen);
+                    var points = new List<Point>(0);
+                    var products = Storage.GetByProductCode(CollectingData.CurrentLine.ProductCode);
+                    foreach (var p in products)
+                    {
+                        points.Add(Storage.Map.PhysicalToInternalCoordinates(p.BoundingBox.Center()));
+                    }
+                    UpdateMapTexture(Storage.Map, CollectingData.Path, points.ToArray());
+                }
+            };
+            Button searchButton = new Button
+            {
+                Name = "search",
+                Text = "Etsi",
+                Icon = searchIcon,
+                TouchArea = new Rectangle(360, 680, 120, 120),
+                Click = delegate()
+                {
+                    if (!IsDataImported)
+                    {
+                        ShowMessage("Virhe : Dataa ei luettu");
+                        return;
+                    }
+                    navigationStack.Push(searchScreen);
+                    (searchScreen as SearchScreen).SearchResult = Search(/* TODO args: orders, products, all */);
+                }
+            };
+            Button startCollectingButton = new Button
+            {
+                Text = "Aloita keräily",
+                Name = "startCollecting",
+                TouchArea = new Rectangle(60, 500, 360, 90),
+                Click = delegate()
+                {
+                    if (!IsDataImported)
+                    {
+                        ShowMessage("Virhe : Dataa ei luettu");
+                        return;
+                    }
+                    Message = null;
+                    navigationStack.Push(collectingScreen);
+
+                    if(!OrderManager.IsOrderAvailable())
+                    {
+                        ShowMessage("Ei kerättävissä olevia tilauksia");
+                        return;
+                    }
+                    CollectingData = new CollectingData();
+                    CollectingData.CurrentLocation_AStar = Storage.PackingLocation_AStar;
+                    CollectingData.SetOrder(
+                        OrderManager.GetNextToCollect(
+                        Storage.Map.InternalToPhysicalCoordinates(CollectingData.CurrentLocation_AStar),
+                        Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar)));
+
+                    collectingScreen.Buttons["nextLine"].Visible = false;
+                    collectingScreen.Buttons["nextOrder"].Visible = false;
+                    collectingScreen.Buttons["packOrder"].Visible = false;
+                    collectingScreen.Buttons["collected"].Visible = true;
+                    collectingScreen.Buttons["packed"].Visible = false;
+                    CollectingData.ShowLineInfo = true;
+                    CollectingData.ShowOrderInfo = true;
+                }
+            };
+            #endregion
+
+            startScreen.Add(readDataButton, startCollectingButton, searchButton);
+            collectingScreen.Add(nextLineButton, mapButton, searchButton,
+                infoButton, changeButton, nextOrderButton,
+                packOrderButton, collectedButton, packedButton);
         }
         void AppDeactivated(object sender, DeactivatedEventArgs e)
         { 
@@ -357,110 +470,26 @@ namespace Error
 
             mapTexture.SetData(mapColors);
         }
-
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
-        protected override void Draw(GameTime gameTime)
+        public void DrawMapScreen()
         {
-            //if (!graphicsChanged) return; // save battery life
-            GraphicsDevice.Clear(Color.White);
-            Screen screen = _navigationStack.Peek();
-            switch (screen.Name)
+            SpriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, PointSampler, DepthStencilState.None, RasterizerState.CullNone);
+            SpriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
+            SpriteBatch.End();
+        }
+        public List<string> Search()
+        {
+            Input.ShowKeyboard("hae jotain", "", "ruuvi");
+            var foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText());
+            var searchResult = new List<string>(0);
+            int line = 0;
+            foreach (var p in foundProducts)
             {
-                case "Start":
-                    spriteBatch.Begin();
-                    spriteBatch.DrawStringCentered(font, "Error", new Rectangle(0, 0, 480, 120), Color.Black, 1f);
-                    DrawTextButton(testButton, "testi");
-                    DrawTextButton(startCollectingButton, "Aloita keräily");
-                    DrawTextButton(readDataButton, "Lue data");
-                    if (errorText != null)
-                    {
-                        spriteBatch.DrawStringCentered(font, "Virhe: " + errorText, new Rectangle(50, 200, 380, 60), Color.Black, 0.6f);
-                    }
-                    else if (isDataImported)
-                    {
-                        spriteBatch.DrawStringCentered(font, "Data luettu", new Rectangle(50, 200, 380, 60), Color.Black, 0.6f);
-                    }
-                    spriteBatch.End();
-                    break;
-                case "Test":
-                    spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
-                    spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
-                    spriteBatch.End();
-                    break;
-                case "Map":
-                    spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, pointSampler, DepthStencilState.None, RasterizerState.CullNone);
-                    spriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
-                    spriteBatch.End();
-                    break;
-                case "Collecting":
-                    spriteBatch.Begin();
-                    Order order = _collectingData.CurrentOrder;
-                    if (order != null)
-                    {
-                        spriteBatch.DrawStringCentered(font, order.Customer, new Rectangle(0, 0, 240, 50), Color.Black, 0.5f);
-                        spriteBatch.DrawStringCentered(font, order.RequestedShippingDate.ToString(), new Rectangle(240, 0, 240, 50), Color.Black, 0.5f);
-                    }
-                    OrderLine line = _collectingData.CurrentLine;
-                    Product product = _collectingData.CurrentProduct;
-                    if (line != null && product != null)
-                    {
-                        spriteBatch.DrawStringCentered(font, product.ProductDescription, new Rectangle(40, 100, 400, 100), Color.Black, 1f);
-                        spriteBatch.DrawStringCentered(font, line.Amount + " kpl, " + line.Amount/product.PackageSize + " pakettia", new Rectangle(40, 200, 400, 100), Color.Black, 1f);
-                        spriteBatch.DrawStringCentered(font, "Tuotekoodi: " + product.ProductCode, new Rectangle(40, 300, 400, 100), Color.Black, 1f);
-                        spriteBatch.DrawStringCentered(font, "Hyllypaikka: " + product.ShelfCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
-                    }
-
-                    DrawTextButton(nextLineButton, "Seuraava rivi");
-                    DrawTextButton(goPackButton, "pakkaamaan");
-
-                    DrawIconButton(showMapButton, "kartta", mapIcon);
-                    DrawIconButton(orderInfoButton, "tiedot", listIcon);
-                    DrawIconButton(makeChangeButton, "muuta", changeIcon);
-                    DrawIconButton(searchButton, "etsi", searchIcon);
-
-                    spriteBatch.End();
-                    break;
-                case "Search":
-                    spriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(screen.OffsetX, screen.OffsetY, 0));
-                    var r = new Rectangle(20, 100, 440, 80);
-                    if (searchResult != null)
-                    {
-                        foreach (var textLine in searchResult)
-                        {
-                            spriteBatch.DrawStringCentered(font, textLine, r, Color.DarkSlateGray, 0.6f);
-                            r.Y += 50;
-                        }
-                    }
-                    spriteBatch.End();
-                    break;
-            }           
-            base.Draw(gameTime);
+                searchResult.Add(line + "   " + p.Description + " " + p.Code
+                    + "  Hylly: " + p.ShelfCode + "  Määrä: " + p.Amount);
+                line++;
+            }
+            return searchResult;
         }
-        void DrawIconButton(Rectangle touchArea, string text, Texture2D icon)
-        {
-            var rect = touchArea;
-            rect.X += 25;
-            rect.Y += 10;
-            rect.Width -= 50;
-            rect.Height -= 50;
-            var textrect = new Rectangle(touchArea.X, touchArea.Bottom - 40, touchArea.Width, 40);
-            spriteBatch.Draw(blankTexture, touchArea, Color.DarkSlateGray);
-            touchArea.Inflate(-1, -2);
-            spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
-            spriteBatch.Draw(icon, rect, Color.DarkSlateGray);
-            spriteBatch.DrawStringCentered(font, text, textrect, Color.DarkSlateGray, 0.62f);
-        }
-        void DrawTextButton(Rectangle touchArea, string text)
-        {
-            spriteBatch.Draw(blankTexture, touchArea, Color.DarkSlateGray);
-            touchArea.Inflate(-2, -2);
-            spriteBatch.Draw(blankTexture, touchArea, Color.WhiteSmoke);
-            spriteBatch.DrawStringCentered(font, text, touchArea, Color.DarkSlateGray, 1f);
-        }
-
         Storage ReadStorageData()
         {
             // esimerkki ja testausta varten
@@ -468,9 +497,9 @@ namespace Error
             for (int i = 0; i < 200; i++)
             {
                 var product = new Product();
-                product.ProductCode = "asd"+(i%36).ToString();
-                product.ProductDescription = "ruuvi";
-                product.ShelfCode = random.Next(43).ToString(); // hyllypaikka, jossa monta lavaa
+                product.Code = "asd"+(i%36).ToString();
+                product.Description = "ruuvi";
+                product.ShelfCode = Random.Next(43).ToString(); // hyllypaikka, jossa monta lavaa
                 product.Amount = 20000;
                 product.PackageSize = 150;
                 product.InsertionDate = DateTime.Now;
@@ -478,10 +507,10 @@ namespace Error
                 product.ProductionDate = new DateTime(2014, 7, 15);
 
                 // tuotteen fyysinen sijainti metreissä
-                float x = random.Next(64);
-                float y = random.Next(64);
+                float x = Random.Next(64);
+                float y = Random.Next(64);
                 float z = 0f;
-                float width = random.Next(4);// yleensä eurolavan koko
+                float width = Random.Next(4);// yleensä eurolavan koko
                 float height = 1f;
                 product.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
 
@@ -489,37 +518,46 @@ namespace Error
             }
             storage.CreateMap(1f);
             return storage;
-
-            // .xml?
         }
-        List<Order> ReadOrders()
+        void ReadOrders()
         {
-            List<Order> orders = new List<Order>(1);
+            OrderManager = new OrderManager();
 
             Order order = new Order();
-            order.Customer = "Oy Asiakas Ab";
-            order.RequestedShippingDate = DateTime.Today;
+            order.Customer = "Oy Asiakas Ab 1";
+            order.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
             order.Lines = new List<OrderLine>(2);
             order.Lines.Add(new OrderLine { ProductCode = "asd" + "27", Amount = 473 });
             order.Lines.Add(new OrderLine { ProductCode = "asd" + "35", Amount = 3473 });
             order.Lines.Add(new OrderLine { ProductCode = "asd" + "5", Amount = 3373 });
-            orders.Add(order);
 
-            return orders;
-        }
-        void OptimizeOrders(List<Order> orders, Vector3 startPosition, Vector3 dropoffPosition)
-        {
-            // optimize order of products in orders
-            for (int iOrder = 0; iOrder < orders.Count; iOrder++)
-            {
-                OptimizeOrder(orders[iOrder], startPosition, dropoffPosition);
-            }
+            Order o = new Order();
+            o.Customer = "Oy Ab 2";
+            o.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
+            o.Lines = new List<OrderLine>(2);
+            o.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
+            o.Lines.Add(new OrderLine { ProductCode = "asd" + "8", Amount = 3473  + Random.Next(60000)});
+            o.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
 
-            // todo optimize order of orders
-            // deadlines
-            // other priorities
+            Order oo = new Order();
+            oo.Customer = "asgfdhgfjk 3";
+            oo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
+            oo.Lines = new List<OrderLine>(2);
+            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
+            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "3", Amount = 3473 + Random.Next(50000) });
+            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
+
+            Order ooo = new Order();
+            ooo.Customer = "lknb nm,lkjk 4";
+            ooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
+            ooo.Lines = new List<OrderLine>(2);
+            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
+            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
+            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
+
+            OrderManager.Add(order, o, oo, ooo);
         }
-        void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
+        public void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
         {
             // jos kerätään kerralla monta tilausta, ei dropoff-sijainnilla ole väliä
             // create all possible orders in which products can be picked (num_products!)
@@ -556,41 +594,11 @@ namespace Error
             }
             order.Lines = permutations[minIndex].ToList();
         }
-        public void ShowError(string message)
+        public void ShowMessage(string message)
         {
-            errorText = message;
-            _navigationStack.Clear();
-            _navigationStack.Push(new Screen("Start"));
-        }
-    }
-
-    public enum Screens
-    {
-        Start,
-        Test,
-        Collecting,
-        Map,
-        Search
-    }
-    //entä class Screen
-    // void processinput(App app)
-    // void draw
-    // jolloin App.Update(){_navigationStack.Peek().ProcessInput(touchCollection)}
-    // ja sama draw
-
-    public class Screen
-    {
-        // Offset is for scrolling
-        // TODO: implement MaxOffset, add kinetic scrolling
-        public string Name = null;
-        public float MaxOffsetX = 0;
-        public float MaxOffsetY = 0;
-        public float OffsetX = 0;
-        public float OffsetY = 0;
-
-        public Screen(string name)
-        {
-            Name = name;
+            Message = message;
+            navigationStack.Clear();
+            navigationStack.Push(startScreen);
         }
     }
 
@@ -600,6 +608,8 @@ namespace Error
         public Product CurrentProduct;
         public Order CurrentOrder;
         public int CurrentLineIndex;
+        public bool ShowLineInfo = true;
+        public bool ShowOrderInfo = true;
         public OrderLine CurrentLine
         {
             get
@@ -620,24 +630,31 @@ namespace Error
 
         public void CollectCurrentLine()
         {
-            OrderLine line = CurrentLine;
-            line.State = LineState.Collected;
-            App.Instance.Storage.Collect(CurrentProduct, line.Amount);
+            CurrentLine.State = STATE.COLLECTED;
+            App.Instance.Storage.Collect(CurrentProduct, CurrentLine.Amount);
             CurrentLocation_AStar = CurrentDestination_AStar;
 
-            if (CurrentLineIndex >= CurrentOrder.Lines.Count)
+            if (CurrentLineIndex >= CurrentOrder.Lines.Count - 1)
             {
-                CurrentOrder.State = OrderState.Collected;
+                App.Instance.OrderManager.ChangeState(CurrentOrder, STATE.COLLECTED);
             }
         }
         public void SetNextLine()
         {
             CurrentLineIndex++;
-            OrderLine nextLine = CurrentOrder.Lines[CurrentLineIndex];
-            CurrentProduct = App.Instance.Storage.FindNearestToCollect(nextLine.ProductCode, nextLine.Amount, CurrentLocation_AStar);
+            OrderLine line = CurrentLine;
+            // todo check currentproduct
+            CurrentProduct = App.Instance.Storage.FindNearestToCollect(line.ProductCode, line.Amount, CurrentLocation_AStar);
             CurrentDestination_AStar = App.Instance.Storage.Map.FindCollectingPoint(CurrentProduct.BoundingBox);
             float time;
             Path = App.Instance.Storage.PathFinder.FindPath(CurrentLocation_AStar, CurrentDestination_AStar, out time);
+        }
+        public void SetOrder(Order order)
+        {
+            CurrentOrder = order;
+            App.Instance.OrderManager.ChangeState(CurrentOrder, STATE.COLLECTING_STARTED);
+            CurrentLineIndex = -1;
+            SetNextLine();
         }
     }
 }

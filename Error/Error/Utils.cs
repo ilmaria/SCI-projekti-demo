@@ -40,5 +40,12 @@ namespace Error
             }
             return factorial;
         }
+        public static bool AreSimilar(string a, string b)
+        {
+            if (a == null || b == null) return false;
+            if (a.Contains(b)) return true;
+            if (b.Contains(a)) return true;
+            return false;
+        }
     }
 }

@@ -12,6 +12,7 @@ namespace Error
         public BoundingBox BoundingBox;
         public Map Map;
         public AStar PathFinder;
+        public Point PackingLocation_AStar;
 
         public Storage(int count)
         {
@@ -28,7 +29,7 @@ namespace Error
                 for (int y = 0; y < Map.SizeY; y++)
                 {
                     MapNode mapNode = new MapNode();
-                    mapNode.IsTraversable = IsTraversable(Map.InteralToPhysicalCoordinates(new Point(x,y)));
+                    mapNode.IsTraversable = IsTraversable(Map.InternalToPhysicalCoordinates(new Point(x,y)));
                     Map[x, y] = mapNode;
                 }
             }
@@ -61,13 +62,12 @@ namespace Error
         }
         public void Remove(Product entry)
         {
-            // lineaarinen haku, on hidas
             Products.Remove(entry);
         }
 
         public List<Product> GetByProductCode(string code)
         {
-            return (from item in Products where item.ProductCode == code select item).ToList();
+            return (from item in Products where item.Code == code select item).ToList();
         }
         public void Collect(Product item, int amount)
         {
@@ -106,8 +106,8 @@ namespace Error
         }
         public List<Product> SearchText(string txt)
         {
-            var products = from p in Products where p.ProductCode == txt select p;
-            products = products.Union(from p in Products where p.ProductDescription == txt select p);
+            var products = from p in Products where p.Code == txt select p;
+            products = products.Union(from p in Products where p.Description == txt select p);
             products = products.Union(from p in Products where p.PalletCode == txt select p);
             products = products.Union(from p in Products where p.ShelfCode == txt select p);
             // remove duplicates
@@ -115,10 +115,11 @@ namespace Error
         }
         public List<Product> SearchPartialText(string txt)
         {
-            var products = from p in Products where p.ProductCode.Contains(txt) select p;
-            products = products.Union(from p in Products where p.ProductDescription.Contains(txt) select p);
-            products = products.Union(from p in Products where p.PalletCode.Contains(txt) select p);
-            products = products.Union(from p in Products where p.ShelfCode.Contains(txt) select p);
+            // tulokset vois j‰rjest‰‰ osuvuuden mukaan
+            var products = from p in Products where Utils.AreSimilar(txt, p.Code) select p;
+            products = products.Union(from p in Products where Utils.AreSimilar(txt, p.Description) select p);
+            products = products.Union(from p in Products where Utils.AreSimilar(txt, p.PalletCode) select p);
+            products = products.Union(from p in Products where Utils.AreSimilar(txt, p.ShelfCode) select p);
             // remove duplicates
             return products.Distinct().ToList();
         }
@@ -127,8 +128,8 @@ namespace Error
     // saapuu lavallinen tavaraa -> new DataBaseEntry()
     public class Product // product ei viel‰k‰‰n hyv‰ nimi
     {
-        public string ProductCode;// asdfsadfsf26565ddsa
-        public string ProductDescription;//"ruuvi sinkitty 5x70"
+        public string Code;// asdfsadfsf26565ddsa
+        public string Description;//"ruuvi sinkitty 5x70"
         public string PalletCode;// 1005, E21B3 == lavapaikka
         public string ShelfCode;// 1005/6? E21B3
         public int Amount;// num_packets = amount/PacketSize
@@ -138,7 +139,6 @@ namespace Error
         public DateTime ModifiedDate; // when anything in this DataBaseEntry has (physically) changed
         // when the product has been picked from warehouse for delivery to customers
         public List<DateTime> CollectionTimes = new List<DateTime>(0);
-        // public Location: warehouse, production
         //n‰ist‰ saa nopeasti ja helposti tehty‰ vaikka 3d kuvan...
         public BoundingBox BoundingBox;//fyysinen sijainti, xmin ymin zmin xmax ymax zmax. z korkeus, 1.kerroksen lattia z=0
         public string ExtraNotes;

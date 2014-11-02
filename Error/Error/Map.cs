@@ -43,7 +43,7 @@ namespace Error
                 Y = (int)((position.Y - _boundingBox.Min.Y) / _resolutionInMetres)
             };
         }
-        public Vector3 InteralToPhysicalCoordinates(Point p)
+        public Vector3 InternalToPhysicalCoordinates(Point p)
         {
             return new Vector3(p.X * _resolutionInMetres + _boundingBox.Min.X,
                 p.Y * _resolutionInMetres + _boundingBox.Min.Y, 0f);
