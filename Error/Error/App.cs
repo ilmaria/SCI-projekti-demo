@@ -50,6 +50,8 @@ namespace Error
         internal static SamplerState PointSampler { get; private set; }
         internal static string Message;
         internal static Boolean IsDataImported;
+        internal static int screenHeight;
+        internal static int screenWidth;
 
         public OrderManager OrderManager { get; private set; }
         public Storage Storage { get; private set; }
@@ -86,6 +88,9 @@ namespace Error
             graphics.PreferredBackBufferWidth = 480;
             graphics.PreferredBackBufferHeight = 800;
             graphics.ApplyChanges();
+
+            screenHeight = graphics.PreferredBackBufferHeight;
+            screenWidth = graphics.PreferredBackBufferWidth;
 
             Content.RootDirectory = "Content";
 

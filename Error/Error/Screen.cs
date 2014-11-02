@@ -8,14 +8,16 @@ namespace Error
 {
     public class Screen
     {
-        // Offset is for scrolling
-        // TODO: implement MaxOffset, add kinetic scrolling
+        // offset scrollaamista varten
+        // TODO: kineettinen scrollaus
         public string Name = null;
         public float MaxOffsetX = 0;
         public float MaxOffsetY = 0;
         public float OffsetX = 0;
         public float OffsetY = 0;
         public Dictionary<string, Button> Buttons;
+        static int scrollbarWidth = 5;
+        Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
 
         public Screen(string name)
         {
@@ -49,6 +51,17 @@ namespace Error
         {
             App.SpriteBatch.Begin();
             foreach (var btn in Buttons.Values) btn.Draw();
+            // piirret‰‰n scrollbar jos on scrollattu
+            if (OffsetY < 0)    // positiivinen offset tarkoittaisi scrollausta ruudun yl‰puolelle
+            {
+                // optimointi puuttuu: scrollbarSize muuttuu vain ruutua vaihtaessa tai uutta hakua tehdess‰
+                int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffsetY));
+                int scrollbarPos = (int)(OffsetY / MaxOffsetY * App.screenHeight);
+                scrollbarArea.Height = scrollbarSize;
+                scrollbarArea.Y = - scrollbarPos;
+
+                App.SpriteBatch.Draw(App.Pixel, scrollbarArea, Color.DarkSlateGray);
+            }
             App.SpriteBatch.End();
         }
     }
@@ -100,16 +113,23 @@ namespace Error
         public List<string> SearchResult;
 
         public SearchScreen() : base("Search") { }
+
         public override void Draw()
         {
             App.SpriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(OffsetX, OffsetY, 0));
             var v = new Vector2(10, 100);
             if (SearchResult != null)
             {
+                int _maxOffsetY = 100;
                 foreach (var textLine in SearchResult)
                 {
                     App.SpriteBatch.DrawString(App.Font, textLine, v, Color.DarkSlateGray, 0.6f, 0f);
                     v.Y += 50;
+                    _maxOffsetY += 50;
+                }
+                if (_maxOffsetY > App.screenHeight)
+                {
+                    MaxOffsetY = _maxOffsetY - App.screenHeight;
                 }
             }
             App.SpriteBatch.End();
@@ -126,6 +146,14 @@ namespace Error
                     // move the search screen vertically by the drag delta
                     // amount.
                     OffsetY += gesture.Delta.Y;
+                    if (OffsetY > 0)    // est‰‰ scrollauksen ruudun yl‰puolelle
+                    {
+                        OffsetY = 0;
+                    }
+                    else if (OffsetY < -MaxOffsetY)
+                    {
+                        OffsetY = -MaxOffsetY;
+                    }
                     break;
             }
             base.Update(gesture);
