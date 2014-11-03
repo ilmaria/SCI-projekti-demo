@@ -13,10 +13,11 @@ namespace Error
          * MaxOffset. N‰iden arvoksi tulee sitten ruudun korkeus + niin monta pikseli‰
          * kuin haluaa pysty‰ kelaamaan ruutua alas.
          */
-        // TODO: kineettinen scrollaus
+        // TODO: scrollauksen pys‰ytys n‰yttˆ‰ koskettamalla
         public string Name = null;
         public float MaxOffset = 0;
         public float Offset = 0;
+        public float Velocity = 0;
         public Dictionary<string, Button> Buttons;
         static int scrollbarWidth = 5;
         Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
@@ -46,6 +47,9 @@ namespace Error
                             return;
                         }
                     }
+                    // pys‰yt‰ scrollaus
+                    //TODO: pys‰ytys myˆs kosketuksella ilman sormen ylˆs nostamista
+                    Velocity = 0;
                     break;
             }
         }
@@ -128,12 +132,44 @@ namespace Error
                 {
                     App.SpriteBatch.DrawString(App.Font, textLine, v, Color.DarkSlateGray, 0.6f, 0f);
                     v.Y += 50;
+                    // lis‰‰ MaxOffset:n arvoa jokaisen kirjoitetun rivin verran
                     _maxOffsetY += 50;
                 }
-                // lis‰‰ MaxOffset:n arvoa jokaisen kirjoitetun rivin verran
                 if (_maxOffsetY > App.screenHeight)
                 {
                     MaxOffset = _maxOffsetY - App.screenHeight;
+                }
+                Offset -= Velocity * (float) App.Instance.TargetElapsedTime.TotalSeconds;
+                // est‰‰ scrollauksen ruudun yl‰puolelle
+                if (Offset > 0)
+                {
+                    Offset = 0;
+                }
+                // est‰‰ scrollauksen liian alas
+                else if (Offset < -MaxOffset)
+                {
+                    Offset = -MaxOffset;
+                }
+                if (Offset == 0 || Offset == -MaxOffset)
+                {
+                    Velocity = 0;
+                }
+                // v‰hennet‰‰n nopeutta pikkuhiljaa (kitkaefekti)
+                if (Velocity > 0)
+                {
+                    Velocity -= 100;    // kitkan suuruus
+                    if (Velocity < 0)
+                    {
+                        Velocity = 0;
+                    }
+                }
+                else if (Velocity < 0)
+                {
+                    Velocity += 100;
+                    if (Velocity > 0)
+                    {
+                        Velocity = 0;
+                    }
                 }
             }
             App.SpriteBatch.End();
@@ -150,14 +186,10 @@ namespace Error
                     // move the search screen vertically by the drag delta
                     // amount.
                     Offset += gesture.Delta.Y;
-                    if (Offset > 0)    // est‰‰ scrollauksen ruudun yl‰puolelle
-                    {
-                        Offset = 0;
-                    }
-                    else if (Offset < -MaxOffset)
-                    {
-                        Offset = -MaxOffset;
-                    }
+                    break;
+                case GestureType.Flick:
+                    // add velocity to screen (only interested in changes to Y velocity).
+                    Velocity -= gesture.Delta.Y;
                     break;
             }
             base.Update(gesture);
