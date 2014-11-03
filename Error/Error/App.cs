@@ -63,6 +63,7 @@ namespace Error
         Screen startScreen;
         Screen searchScreen;
         Screen mapScreen;
+        Screen showOrdersScreen;
         Texture2D mapIcon, listIcon, changeIcon, searchIcon;
 
         // t‰st‰ eteenp‰in loputkin kent‰t voisi siivota
@@ -204,6 +205,7 @@ namespace Error
             searchScreen = new SearchScreen();
             mapScreen = new MapScreen();
             collectingScreen = new CollectingScreen();
+            showOrdersScreen = new SearchScreen();
 
             #region Buttons
             Button readDataButton = new Button
@@ -429,9 +431,26 @@ namespace Error
                     CollectingData.ShowOrderInfo = true;
                 }
             };
+            Button showOrdersButton = new Button
+            {
+                Name = "showOrders",
+                Text = "tilaukset",
+                Icon = listIcon,
+                TouchArea = new Rectangle(240, 680, 120, 120),
+                Click = delegate()
+                {
+                    if (!IsDataImported)
+                    {
+                        ShowMessage("Virhe : Dataa ei luettu");
+                        return;
+                    }
+                    navigationStack.Push(showOrdersScreen);
+                    (showOrdersScreen as SearchScreen).SearchResult = GetOrderInfo();
+                }
+            };
             #endregion
 
-            startScreen.Add(readDataButton, startCollectingButton, searchButton);
+            startScreen.Add(readDataButton, startCollectingButton, searchButton,showOrdersButton);
             collectingScreen.Add(nextLineButton, mapButton, searchButton,
                 infoButton, changeButton, nextOrderButton,
                 packOrderButton, collectedButton, packedButton);
@@ -491,6 +510,18 @@ namespace Error
             {
                 searchResult.Add(line + "   " + p.Description + " " + p.Code
                     + "  Hylly: " + p.ShelfCode + "  M‰‰r‰: " + p.Amount);
+                line++;
+            }
+            return searchResult;
+        }
+        public List<string> GetOrderInfo()
+        {
+            // todo j‰rjestys ja tilauksen tilanne
+            var searchResult = new List<string>();
+            int line = 0;
+            foreach (var o in OrderManager.Orders)
+            {
+                searchResult.Add(line + "  " + o.Customer + "  " + o.Lines.Count + " rivi‰ " + o.RequestedShippingDate.Date.ToShortDateString());
                 line++;
             }
             return searchResult;
