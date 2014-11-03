@@ -8,13 +8,15 @@ namespace Error
 {
     public class Screen
     {
-        // offset scrollaamista varten
+        /* OHJE:
+         * Jokaisessa ruudussa, jossa halutaan scrollata pit‰‰ m‰‰ritt‰‰ toi
+         * MaxOffset. N‰iden arvoksi tulee sitten ruudun korkeus + niin monta pikseli‰
+         * kuin haluaa pysty‰ kelaamaan ruutua alas.
+         */
         // TODO: kineettinen scrollaus
         public string Name = null;
-        public float MaxOffsetX = 0;
-        public float MaxOffsetY = 0;
-        public float OffsetX = 0;
-        public float OffsetY = 0;
+        public float MaxOffset = 0;
+        public float Offset = 0;
         public Dictionary<string, Button> Buttons;
         static int scrollbarWidth = 5;
         Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
@@ -52,11 +54,11 @@ namespace Error
             App.SpriteBatch.Begin();
             foreach (var btn in Buttons.Values) btn.Draw();
             // piirret‰‰n scrollbar jos on scrollattu
-            if (OffsetY < 0)    // positiivinen offset tarkoittaisi scrollausta ruudun yl‰puolelle
+            if (Offset < 0)    // positiivinen offset tarkoittaisi scrollausta ruudun yl‰puolelle
             {
                 // optimointi puuttuu: scrollbarSize muuttuu vain ruutua vaihtaessa tai uutta hakua tehdess‰
-                int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffsetY));
-                int scrollbarPos = (int)(OffsetY / MaxOffsetY * App.screenHeight);
+                int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffset));
+                int scrollbarPos = (int)(Offset / MaxOffset * (App.screenHeight - scrollbarSize));
                 scrollbarArea.Height = scrollbarSize;
                 scrollbarArea.Y = - scrollbarPos;
 
@@ -116,10 +118,11 @@ namespace Error
 
         public override void Draw()
         {
-            App.SpriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(OffsetX, OffsetY, 0));
+            App.SpriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(0, Offset, 0));
             var v = new Vector2(10, 100);
             if (SearchResult != null)
             {
+                // tekstit alkavat korkeudelta y=100
                 int _maxOffsetY = 100;
                 foreach (var textLine in SearchResult)
                 {
@@ -127,9 +130,10 @@ namespace Error
                     v.Y += 50;
                     _maxOffsetY += 50;
                 }
+                // lis‰‰ MaxOffset:n arvoa jokaisen kirjoitetun rivin verran
                 if (_maxOffsetY > App.screenHeight)
                 {
-                    MaxOffsetY = _maxOffsetY - App.screenHeight;
+                    MaxOffset = _maxOffsetY - App.screenHeight;
                 }
             }
             App.SpriteBatch.End();
@@ -145,14 +149,14 @@ namespace Error
                 case GestureType.FreeDrag:
                     // move the search screen vertically by the drag delta
                     // amount.
-                    OffsetY += gesture.Delta.Y;
-                    if (OffsetY > 0)    // est‰‰ scrollauksen ruudun yl‰puolelle
+                    Offset += gesture.Delta.Y;
+                    if (Offset > 0)    // est‰‰ scrollauksen ruudun yl‰puolelle
                     {
-                        OffsetY = 0;
+                        Offset = 0;
                     }
-                    else if (OffsetY < -MaxOffsetY)
+                    else if (Offset < -MaxOffset)
                     {
-                        OffsetY = -MaxOffsetY;
+                        Offset = -MaxOffset;
                     }
                     break;
             }
