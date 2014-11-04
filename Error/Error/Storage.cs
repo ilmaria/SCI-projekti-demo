@@ -120,7 +120,7 @@ namespace Error
             }
             return keys[minIndex];
         }
-        public List<int> SearchText(string txt)
+        public List<int> SearchExactText(string txt)
         {
             var keys = from p in _products where p.Value.Code == txt select p.Key;
             keys = keys.Union(from p in _products where p.Value.Description == txt select p.Key);
@@ -129,15 +129,24 @@ namespace Error
             // remove duplicates
             return keys.Distinct().ToList();
         }
-        public List<int> SearchPartialText(string txt)
+        // Result is sorted by match quality
+        public List<int> SearchPartialText(string txt, int maxResultCount)
         {
-            // tulokset vois j‰rjest‰‰ osuvuuden mukaan
-            var keys = from p in _products where Utils.AreSimilar(txt, p.Value.Code) select p.Key;
-            keys = keys.Union(from p in _products where Utils.AreSimilar(txt, p.Value.Description) select p.Key);
-            keys = keys.Union(from p in _products where Utils.AreSimilar(txt, p.Value.PalletCode) select p.Key);
-            keys = keys.Union(from p in _products where Utils.AreSimilar(txt, p.Value.ShelfCode) select p.Key);
-            // remove duplicates
-            return keys.Distinct().ToList();
+            BinaryHeap<Utils.TFloat<int>> sortedKeys = new BinaryHeap<Utils.TFloat<int>>(_products.Count);
+            foreach (var kvp in _products)
+            {
+                float score = Math.Min(Utils.LevenshteinScore(txt, kvp.Value.Code),
+                    Math.Min(Utils.LevenshteinScore(txt, kvp.Value.Description),
+                    Math.Min(Utils.LevenshteinScore(txt, kvp.Value.PalletCode),
+                    Utils.LevenshteinScore(txt, kvp.Value.ShelfCode))));
+                sortedKeys.Add(new Utils.TFloat<int> { Value = kvp.Key, Float = score });
+            }
+            List<int> result = new List<int>(maxResultCount);
+            for (int i = 0; i < maxResultCount; i++)
+            {
+                result.Add(sortedKeys.Remove().Value);
+            }
+            return result;
         }
     }
 

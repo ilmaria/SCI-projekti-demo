@@ -49,5 +49,35 @@ namespace Error
             if (b.Contains(a)) return true;
             return false;
         }
+        // how many chars need to change make the strings match
+        public static int LevenshteinDistance(string source, string target)
+        {
+            if (source.Length == 0) return target.Length;
+            if (target.Length == 0) return source.Length;
+
+            int distance = 0;
+            if (source[source.Length - 1] != target[target.Length - 1]) distance = 1;
+
+            return Math.Min(Math.Min(LevenshteinDistance(source.Substring(0, source.Length - 1), target) + 1,
+                                     LevenshteinDistance(source, target.Substring(0, target.Length - 1))) + 1,
+                                     LevenshteinDistance(source.Substring(0, source.Length - 1), target.Substring(0, target.Length - 1)) + distance);
+        }
+        // minimize this
+        public static float LevenshteinScore(string source, string target)
+        {
+            if (source == null || target == null || target.Length == 0 || source.Length == 0)
+                return 100f;
+            return (float)LevenshteinDistance(source, target) / Math.Max(source.Length, target.Length);
+        }
+        public struct TFloat<T> : IComparable<TFloat<T>>
+        {
+            public T Value;
+            public float Float;
+
+            int IComparable<TFloat<T>>.CompareTo(TFloat<T> other)
+            {
+                return Float.CompareTo(other.Float);
+            }
+        }
     }
 }

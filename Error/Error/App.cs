@@ -508,10 +508,9 @@ namespace Error
             navigationStack.Push(searchScreen);
 
             Input.ShowKeyboard("Hae varastosta", "", "ruuvi");
-            var foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText());
+            var foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText(), 100);
 
-            // todo sort search results by relevance
-
+            searchScreen.Offset = 0;
             int index = 1;
             Point offset = new Point(0, 100);
             int itemHeight = 50;
@@ -544,7 +543,7 @@ namespace Error
                 return;
             }
             navigationStack.Push(showOrdersScreen);
-
+            showOrdersScreen.Offset = 0;
             OrderManager.EnsureSort();
             var orders = OrderManager.Orders;
             int index = 1;
