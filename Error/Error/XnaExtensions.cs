@@ -118,5 +118,11 @@ namespace Error
         {
             return (box.Max + box.Min) * 0.5f;
         }
+        public static Rectangle CreateOffset(this Rectangle r, int offsetX, int offsetY)
+        {
+            r.X += offsetX;
+            r.Y += offsetY;
+            return r;
+        }
     }
 }

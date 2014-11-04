@@ -64,13 +64,14 @@ namespace Error
         Screen searchScreen;
         Screen mapScreen;
         Screen showOrdersScreen;
-        Texture2D mapIcon, listIcon, changeIcon, searchIcon;
+        Texture2D mapIcon, listIcon, changeIcon, searchIcon, locationIcon;
 
         // t‰st‰ eteenp‰in loputkin kent‰t voisi siivota
         Color[] mapColors;// --> map-luokkaan
         Texture2D mapTexture;
         // pakkauspˆyd‰n sijainti fyysisiss‰ koordinaateissa (ei A* - koordinaateissa)
         Vector3 _packingPosition;// --> storage-luokkaan
+        int lastKey = 0;
 
         static App _app;
         public static App Instance
@@ -136,6 +137,7 @@ namespace Error
             listIcon = Content.Load<Texture2D>("listIcon");
             changeIcon = Content.Load<Texture2D>("changeIcon");
             searchIcon = Content.Load<Texture2D>("searchIcon");
+            locationIcon = Content.Load<Texture2D>("locationIcon");
             Random = new Random();
             PointSampler = new SamplerState();
             PointSampler.AddressU = TextureAddressMode.Clamp;
@@ -147,6 +149,8 @@ namespace Error
             SetupScreens();
             navigationStack = new Stack<Screen>();
             navigationStack.Push(startScreen);
+
+            //UI.ForegroundColor = Color.BurlyWood; jne
         }
 
         /// <summary>
@@ -180,8 +184,9 @@ namespace Error
 
             while (TouchPanel.IsGestureAvailable)
             {
-                navigationStack.Peek().Update(TouchPanel.ReadGesture());
+                navigationStack.Peek().ProcessInput(TouchPanel.ReadGesture());
             }
+            navigationStack.Peek().Update((float)TargetElapsedTime.TotalSeconds);
 
             base.Update(gameTime);
         }
@@ -202,10 +207,12 @@ namespace Error
         void SetupScreens()
         {
             startScreen = new StartScreen();
-            searchScreen = new SearchScreen();
+            searchScreen = new Screen("search");
+            searchScreen.IsScrollable = true;
             mapScreen = new MapScreen();
             collectingScreen = new CollectingScreen();
-            showOrdersScreen = new SearchScreen();
+            showOrdersScreen = new Screen("showOrders");
+            showOrdersScreen.IsScrollable = true;
 
             #region Buttons
             Button readDataButton = new Button
@@ -244,11 +251,11 @@ namespace Error
                     CollectingData.ShowLineInfo = true;
                     CollectingData.ShowOrderInfo = true;
                     CollectingData.SetNextLine();
-                    collectingScreen.Buttons["collected"].Visible = true;
-                    collectingScreen.Buttons["nextLine"].Visible = false;
-                    collectingScreen.Buttons["nextOrder"].Visible = false;
-                    collectingScreen.Buttons["packOrder"].Visible = false;
-                    collectingScreen.Buttons["packed"].Visible = false;
+                    collectingScreen.ClickableElements["collected"].Visible = true;
+                    collectingScreen.ClickableElements["nextLine"].Visible = false;
+                    collectingScreen.ClickableElements["nextOrder"].Visible = false;
+                    collectingScreen.ClickableElements["packOrder"].Visible = false;
+                    collectingScreen.ClickableElements["packed"].Visible = false;
                 }
             };
             Button packOrderButton = new Button
@@ -260,11 +267,11 @@ namespace Error
                 {
                     CollectingData.ShowLineInfo = false;
                     CollectingData.ShowOrderInfo = true;
-                    collectingScreen.Buttons["packOrder"].Visible = false;
-                    collectingScreen.Buttons["packed"].Visible = true;
-                    collectingScreen.Buttons["collected"].Visible = false;
-                    collectingScreen.Buttons["nextOrder"].Visible = false;
-                    collectingScreen.Buttons["nextLine"].Visible = false;
+                    collectingScreen.ClickableElements["packOrder"].Visible = false;
+                    collectingScreen.ClickableElements["packed"].Visible = true;
+                    collectingScreen.ClickableElements["collected"].Visible = false;
+                    collectingScreen.ClickableElements["nextOrder"].Visible = false;
+                    collectingScreen.ClickableElements["nextLine"].Visible = false;
                 }
             };
             Button packedButton = new Button
@@ -280,8 +287,8 @@ namespace Error
                     // check if there are orders to collect
                     if(OrderManager.IsOrderAvailable())
                     {
-                        collectingScreen.Buttons["nextOrder"].Visible = true;
-                        collectingScreen.Buttons["packed"].Visible = false;
+                        collectingScreen.ClickableElements["nextOrder"].Visible = true;
+                        collectingScreen.ClickableElements["packed"].Visible = false;
                     }
                     else
                     {
@@ -300,24 +307,24 @@ namespace Error
                     CollectingData.ShowLineInfo = false;
                     CollectingData.ShowOrderInfo = true;
                     CollectingData.CollectCurrentLine();
-                    collectingScreen.Buttons["collected"].Visible = false;
+                    collectingScreen.ClickableElements["collected"].Visible = false;
 
                     if (CollectingData.CurrentOrder.State == STATE.COLLECTED)
                     {
-                        collectingScreen.Buttons["packOrder"].Visible = true;
+                        collectingScreen.ClickableElements["packOrder"].Visible = true;
                         // check if there are orders to collect
                         if(OrderManager.IsOrderAvailable())
                         {
-                            collectingScreen.Buttons["nextOrder"].Visible = true;
+                            collectingScreen.ClickableElements["nextOrder"].Visible = true;
                         }
                         else
                         {
-                            collectingScreen.Buttons["nextOrder"].Visible = false;
+                            collectingScreen.ClickableElements["nextOrder"].Visible = false;
                         }
                     }
                     else
                     {
-                        collectingScreen.Buttons["nextLine"].Visible = true;
+                        collectingScreen.ClickableElements["nextLine"].Visible = true;
                         CollectingData.ShowLineInfo = false;
                     }
                 }
@@ -337,11 +344,11 @@ namespace Error
                         Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar)
                         )
                         );
-                    collectingScreen.Buttons["nextOrder"].Visible = false;
-                    collectingScreen.Buttons["packOrder"].Visible = false;
-                    collectingScreen.Buttons["nextLine"].Visible = false;
-                    collectingScreen.Buttons["packed"].Visible = false;
-                    collectingScreen.Buttons["collected"].Visible = true;
+                    collectingScreen.ClickableElements["nextOrder"].Visible = false;
+                    collectingScreen.ClickableElements["packOrder"].Visible = false;
+                    collectingScreen.ClickableElements["nextLine"].Visible = false;
+                    collectingScreen.ClickableElements["packed"].Visible = false;
+                    collectingScreen.ClickableElements["collected"].Visible = true;
                 }
             };
             Button infoButton = new Button
@@ -384,16 +391,7 @@ namespace Error
                 Text = "Etsi",
                 Icon = searchIcon,
                 TouchArea = new Rectangle(360, 680, 120, 120),
-                Click = delegate()
-                {
-                    if (!IsDataImported)
-                    {
-                        ShowMessage("Virhe : Dataa ei luettu");
-                        return;
-                    }
-                    navigationStack.Push(searchScreen);
-                    (searchScreen as SearchScreen).SearchResult = Search(/* TODO args: orders, products, all */);
-                }
+                Click = SearchStorage
             };
             Button startCollectingButton = new Button
             {
@@ -422,11 +420,11 @@ namespace Error
                         Storage.Map.InternalToPhysicalCoordinates(CollectingData.CurrentLocation_AStar),
                         Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar)));
 
-                    collectingScreen.Buttons["nextLine"].Visible = false;
-                    collectingScreen.Buttons["nextOrder"].Visible = false;
-                    collectingScreen.Buttons["packOrder"].Visible = false;
-                    collectingScreen.Buttons["collected"].Visible = true;
-                    collectingScreen.Buttons["packed"].Visible = false;
+                    collectingScreen.ClickableElements["nextLine"].Visible = false;
+                    collectingScreen.ClickableElements["nextOrder"].Visible = false;
+                    collectingScreen.ClickableElements["packOrder"].Visible = false;
+                    collectingScreen.ClickableElements["collected"].Visible = true;
+                    collectingScreen.ClickableElements["packed"].Visible = false;
                     CollectingData.ShowLineInfo = true;
                     CollectingData.ShowOrderInfo = true;
                 }
@@ -437,16 +435,7 @@ namespace Error
                 Text = "tilaukset",
                 Icon = listIcon,
                 TouchArea = new Rectangle(240, 680, 120, 120),
-                Click = delegate()
-                {
-                    if (!IsDataImported)
-                    {
-                        ShowMessage("Virhe : Dataa ei luettu");
-                        return;
-                    }
-                    navigationStack.Push(showOrdersScreen);
-                    (showOrdersScreen as SearchScreen).SearchResult = GetOrderInfo();
-                }
+                Click = ShowOrders
             };
             #endregion
 
@@ -454,6 +443,7 @@ namespace Error
             collectingScreen.Add(nextLineButton, mapButton, searchButton,
                 infoButton, changeButton, nextOrderButton,
                 packOrderButton, collectedButton, packedButton);
+            //showOrdersScreen.Add(infoButton);
         }
         void AppDeactivated(object sender, DeactivatedEventArgs e)
         { 
@@ -498,33 +488,92 @@ namespace Error
         {
             SpriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, PointSampler, DepthStencilState.None, RasterizerState.CullNone);
             SpriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
+            Point location = CollectingData.CurrentLocation_AStar;
+            int size = (int)(5f / Storage.Map.ResolutionInMetres);
+            Rectangle r = new Rectangle(location.X - size / 2, location.Y - size, size, size);
+            r.X = r.X * screenWidth / Storage.Map.SizeX;
+            r.Y = r.Y * screenWidth / Storage.Map.SizeY + 160;
+            r.Width = r.Width * screenWidth / Storage.Map.SizeX;
+            r.Height = r.Height * screenWidth / Storage.Map.SizeY;
+            SpriteBatch.Draw(locationIcon, r, Color.Red);
             SpriteBatch.End();
         }
-        public List<string> Search()
+        public void SearchStorage()
         {
-            Input.ShowKeyboard("hae jotain", "", "ruuvi");
+            if (!IsDataImported)
+            {
+                ShowMessage("Virhe : Dataa ei luettu");
+                return;
+            }
+            navigationStack.Push(searchScreen);
+
+            Input.ShowKeyboard("Hae varastosta", "", "ruuvi");
             var foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText());
-            var searchResult = new List<string>(0);
-            int line = 0;
+
+            // todo sort search results by relevance
+
+            int index = 1;
+            Point offset = new Point(0, 100);
+            int itemHeight = 50;
             foreach (var p in foundProducts)
             {
-                searchResult.Add(line + "   " + p.Description + " " + p.Code
-                    + "  Hylly: " + p.ShelfCode + "  M‰‰r‰: " + p.Amount);
-                line++;
+                var item = new ListItem(index, offset,
+                    "Hylly: " + p.ShelfCode,
+                    new List<string> 
+                    { 
+                        p.Description + "  " + p.Code,
+                        p.Amount + " kpl hyllyss‰"
+                    },
+                    null,
+                    index.ToString(),
+                    false);
+
+                itemHeight = item.TouchArea.Height + 10;
+                searchScreen.Add(item);
+                offset.Y += itemHeight;
+                index++;
             }
-            return searchResult;
+            searchScreen.Height = 100 + foundProducts.Count * itemHeight;
         }
-        public List<string> GetOrderInfo()
+        public void ShowOrders()
         {
-            // todo j‰rjestys ja tilauksen tilanne
-            var searchResult = new List<string>();
-            int line = 0;
-            foreach (var o in OrderManager.Orders)
+            if (!IsDataImported)
             {
-                searchResult.Add(line + "  " + o.Customer + "  " + o.Lines.Count + " rivi‰ " + o.RequestedShippingDate.Date.ToShortDateString());
-                line++;
+                ShowMessage("Virhe : Dataa ei luettu");
+                return;
             }
-            return searchResult;
+            navigationStack.Push(showOrdersScreen);
+
+            OrderManager.EnsureSort();
+            var orders = OrderManager.Orders;
+            int index = 1;
+            Point offset = new Point(0, 100);
+            int itemHeight = 50;
+            foreach (var o in orders)
+            {
+                var item = new ListItem(index, offset,
+                    o.Customer,
+                    new List<string> 
+                            { 
+                                o.RequestedShippingDate.Date.ToShortDateString(),
+                                o.Lines.Count.ToString() + " rivi‰" 
+                            },
+                    null,
+                    index.ToString(),
+                    false);
+
+                itemHeight = item.TouchArea.Height + 10;
+                showOrdersScreen.Add(item);
+                offset.Y += itemHeight;
+                index++;
+            }
+            showOrdersScreen.Height = 100 + orders.Count * itemHeight;
+        }
+        public int GetUniqueKey()
+        {
+            int key = lastKey;
+            lastKey++;
+            return key;
         }
         Storage ReadStorageData()
         {
@@ -591,7 +640,24 @@ namespace Error
             ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
             ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
 
-            OrderManager.Add(order, o, oo, ooo);
+            Order oooo = new Order();
+            oooo.Customer = "yritys5";
+            oooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
+            oooo.Lines = new List<OrderLine>(2);
+            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
+            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
+            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
+
+            Order ooooo = new Order();
+            ooooo.Customer = "yritys6";
+            ooooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
+            ooooo.Lines = new List<OrderLine>(2);
+            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
+            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
+            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
+
+            OrderManager.Add(order, o, oo, ooo,oooo,ooooo);
+            OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
         }
         public void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
         {

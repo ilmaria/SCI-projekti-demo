@@ -14,6 +14,8 @@ namespace Error
         public AStar PathFinder;
         public Point PackingLocation_AStar;
 
+        Dictionary<int, Product> _products;
+
         public Storage(int count)
         {
             Products = new List<Product>(count);
@@ -60,6 +62,29 @@ namespace Error
             BoundingBox = BoundingBox.CreateMerged(BoundingBox, product.BoundingBox);
             Products.Add(product);
         }
+
+        // TODO
+        #region database access
+        // returns deep copy of the product, ie. modifying the return value doesn't modify value in database
+        public Product GetProduct(int key)
+        {
+            return _products[key];
+        }
+        // using this function should be the only way to modify database
+        public void ModifyProduct(int key, Product value)
+        {
+            _products[key] = value;
+        }
+        // except this
+        public void AddProduct(Product value)
+        {
+            int key = App.Instance.GetUniqueKey();
+            _products.Add(key, value);
+            BoundingBox = BoundingBox.CreateMerged(BoundingBox, value.BoundingBox);
+        }
+        //todo remove=siirto johonkin arkistoon?
+        #endregion
+
         public void Remove(Product entry)
         {
             Products.Remove(entry);
@@ -126,7 +151,7 @@ namespace Error
     }
 
     // saapuu lavallinen tavaraa -> new DataBaseEntry()
-    public class Product // product ei vieläkään hyvä nimi
+    public class Product // product ei vieläkään hyvä nimi --> struct
     {
         public string Code;// asdfsadfsf26565ddsa
         public string Description;//"ruuvi sinkitty 5x70"

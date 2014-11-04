@@ -1,7 +1,4 @@
 using Microsoft.Xna.Framework;
-using System.Collections.Generic;
-using System;
-using System.Linq;
 
 namespace Error
 {
@@ -10,7 +7,7 @@ namespace Error
         public int SizeX, SizeY;
         BoundingBox _boundingBox;
         MapNode[,] _mapData;
-        float _resolutionInMetres = 1f;
+        public float ResolutionInMetres { get; private set; }
 
         public MapNode this[int x, int y]
         {
@@ -20,7 +17,7 @@ namespace Error
 
         public Map(BoundingBox b, float resolutionInMetres)
         {
-            _resolutionInMetres = resolutionInMetres;
+            ResolutionInMetres = resolutionInMetres;
             SizeX = (int)((b.Max.X - b.Min.X) / resolutionInMetres);
             SizeY = (int)((b.Max.Y - b.Min.Y) / resolutionInMetres);
             _boundingBox = b;
@@ -39,14 +36,14 @@ namespace Error
         {
             return new Point
             {
-                X = (int)((position.X - _boundingBox.Min.X) / _resolutionInMetres),
-                Y = (int)((position.Y - _boundingBox.Min.Y) / _resolutionInMetres)
+                X = (int)((position.X - _boundingBox.Min.X) / ResolutionInMetres),
+                Y = (int)((position.Y - _boundingBox.Min.Y) / ResolutionInMetres)
             };
         }
         public Vector3 InternalToPhysicalCoordinates(Point p)
         {
-            return new Vector3(p.X * _resolutionInMetres + _boundingBox.Min.X,
-                p.Y * _resolutionInMetres + _boundingBox.Min.Y, 0f);
+            return new Vector3(p.X * ResolutionInMetres + _boundingBox.Min.X,
+                p.Y * ResolutionInMetres + _boundingBox.Min.Y, 0f);
         }
         // return the A*-coordinate from which the product in b can be collected
         public Point FindCollectingPoint(BoundingBox b)

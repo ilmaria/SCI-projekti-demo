@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 
 namespace Error
@@ -13,52 +11,123 @@ namespace Error
          * MaxOffset. Näiden arvoksi tulee sitten ruudun korkeus + niin monta pikseliä
          * kuin haluaa pystyä kelaamaan ruutua alas.
          */
-        // TODO: scrollauksen pysäytys näyttöä koskettamalla
         public string Name = null;
         public float MaxOffset = 0;
         public float Offset = 0;
         public float Velocity = 0;
-        public Dictionary<string, Button> Buttons;
+        public Dictionary<string, ClickableElement> ClickableElements;
         static int scrollbarWidth = 5;
         Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
+        public int Height = App.screenHeight; // muutetaan todelliseen arvoon
+        public bool IsScrollable = false;
 
         public Screen(string name)
         {
             Name = name;
-            Buttons = new Dictionary<string, Button>();
+            ClickableElements = new Dictionary<string, ClickableElement>();
         }
-        public void Add(params Button[] buttons)
+        public void Add(params ClickableElement[] elements)
         {
-            foreach (var btn in buttons)
+            foreach (var elem in elements)
             {
-                Buttons.Add(btn.Name, btn);
+                if(ClickableElements.ContainsKey(elem.Name))
+                {
+                    ClickableElements.Remove(elem.Name);
+                }
+                ClickableElements.Add(elem.Name, elem);
             }
         }
-        public virtual void Update(GestureSample gesture)
+        public void Update(float elapsedSeconds)
+        {
+            if (IsScrollable)
+            {
+                MaxOffset = (Height > App.screenHeight) ? Height - App.screenHeight : 0;
+                Offset += Velocity * elapsedSeconds;
+                // estää scrollauksen ruudun yläpuolelle
+                if (Offset > 0)
+                {
+                    Offset = 0;
+                }
+                // estää scrollauksen liian alas
+                else if (Offset < -MaxOffset)
+                {
+                    Offset = -MaxOffset;
+                }
+                if (Offset == 0 || Offset == -MaxOffset)
+                {
+                    Velocity = 0;
+                }
+                // vähennetään nopeutta pikkuhiljaa (kitkaefekti)
+                if (Velocity > 0)
+                {
+                    Velocity -= 100;    // kitkan suuruus
+                    if (Velocity < 0)
+                    {
+                        Velocity = 0;
+                    }
+                }
+                else if (Velocity < 0)
+                {
+                    Velocity += 100;
+                    if (Velocity > 0)
+                    {
+                        Velocity = 0;
+                    }
+                }
+            }
+            else
+                Offset = 0;
+        }
+        public virtual void ProcessInput(GestureSample gesture)
         {
             switch (gesture.GestureType)
             {
                 case GestureType.Tap:
-                    foreach (var btn in Buttons.Values)
-                    {
-                        if (btn.Visible && btn.TouchArea.Contains(gesture.Position) && btn.Click != null)
-                        {
-                            btn.Click();
-                            return;
-                        }
-                    }
+
                     // pysäytä scrollaus
                     //TODO: pysäytys myös kosketuksella ilman sormen ylös nostamista
                     Velocity = 0;
+
+                    // check if any of clickable elements is hit
+                    foreach (var elem in ClickableElements.Values)
+                    {
+                        if (elem.Visible && elem.Click != null)
+                        {
+                            if (elem.IsFixedPosition && elem.TouchArea.Contains(gesture.Position))
+                            {
+                                elem.Click();
+                                return;
+                            }
+                            if (!elem.IsFixedPosition && elem.TouchArea.CreateOffset(0, (int)Offset).Contains(gesture.Position))
+                            {
+                                elem.Click();
+                                return;
+                            }
+                        }
+                    }
+                    break;
+                case GestureType.FreeDrag:
+                    // move the search screen vertically by the drag delta
+                    // amount.
+                    if (IsScrollable)
+                    {
+                        Offset += gesture.Delta.Y;
+                    }
+                    break;
+                case GestureType.Flick:
+                    // add velocity to screen (only interested in changes to Y velocity).
+                    if (IsScrollable)
+                    {
+                        Velocity += gesture.Delta.Y;
+                    }
                     break;
             }
         }
         public virtual void Draw()
         {
             App.SpriteBatch.Begin();
-            foreach (var btn in Buttons.Values) btn.Draw();
             // piirretään scrollbar jos on scrollattu
-            if (Offset < 0)    // positiivinen offset tarkoittaisi scrollausta ruudun yläpuolelle
+            if (IsScrollable)
             {
                 // optimointi puuttuu: scrollbarSize muuttuu vain ruutua vaihtaessa tai uutta hakua tehdessä
                 int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffset));
@@ -66,7 +135,16 @@ namespace Error
                 scrollbarArea.Height = scrollbarSize;
                 scrollbarArea.Y = - scrollbarPos;
 
-                App.SpriteBatch.Draw(App.Pixel, scrollbarArea, Color.DarkSlateGray);
+                App.SpriteBatch.Draw(App.Pixel, scrollbarArea, UI.ForegroundColor);
+            }
+            // offset kokonaislukuna koska ohuet viivat jää piirtämättä jos ei justiinsa pikselin kohdalla
+            foreach (var elem in ClickableElements.Values)
+            {
+                if (elem.Visible && !elem.IsFixedPosition) elem.Draw(0, (int)Offset);
+            }
+            foreach (var elem in ClickableElements.Values)
+            {
+                if (elem.Visible && elem.IsFixedPosition) elem.Draw(0, 0);
             }
             App.SpriteBatch.End();
         }
@@ -101,7 +179,7 @@ namespace Error
     }
     public class StartScreen : Screen
     {
-        public StartScreen() : base("Start") { }
+        public StartScreen() : base("Start") {}
         public override void Draw()
         {
             App.SpriteBatch.Begin();
@@ -112,87 +190,6 @@ namespace Error
             }
             App.SpriteBatch.End();
             base.Draw();
-        }
-    }
-    public class SearchScreen : Screen
-    {
-        public List<string> SearchResult;
-
-        public SearchScreen() : base("Search") { }
-
-        public override void Draw()
-        {
-            App.SpriteBatch.Begin(SpriteSortMode.Texture, null, null, null, null, null, Matrix.CreateTranslation(0, Offset, 0));
-            var v = new Vector2(10, 100);
-            if (SearchResult != null)
-            {
-                // tekstit alkavat korkeudelta y=100
-                int _maxOffsetY = 100;
-                foreach (var textLine in SearchResult)
-                {
-                    App.SpriteBatch.DrawString(App.Font, textLine, v, Color.DarkSlateGray, 0.6f, 0f);
-                    v.Y += 50;
-                    // lisää MaxOffset:n arvoa jokaisen kirjoitetun rivin verran
-                    _maxOffsetY += 50;
-                }
-                if (_maxOffsetY > App.screenHeight)
-                {
-                    MaxOffset = _maxOffsetY - App.screenHeight;
-                }
-                Offset -= Velocity * (float) App.Instance.TargetElapsedTime.TotalSeconds;
-                // estää scrollauksen ruudun yläpuolelle
-                if (Offset > 0)
-                {
-                    Offset = 0;
-                }
-                // estää scrollauksen liian alas
-                else if (Offset < -MaxOffset)
-                {
-                    Offset = -MaxOffset;
-                }
-                if (Offset == 0 || Offset == -MaxOffset)
-                {
-                    Velocity = 0;
-                }
-                // vähennetään nopeutta pikkuhiljaa (kitkaefekti)
-                if (Velocity > 0)
-                {
-                    Velocity -= 100;    // kitkan suuruus
-                    if (Velocity < 0)
-                    {
-                        Velocity = 0;
-                    }
-                }
-                else if (Velocity < 0)
-                {
-                    Velocity += 100;
-                    if (Velocity > 0)
-                    {
-                        Velocity = 0;
-                    }
-                }
-            }
-            App.SpriteBatch.End();
-            base.Draw();
-        }
-        public override void Update(GestureSample gesture)
-        {
-            switch (gesture.GestureType)
-            {
-                // FreeDragin kanssa ei tarvi olla niin tarkkana suunnan kanssa.
-                // Lisäks kun vaan yksi drag-tyyppinen gesture on enabled,
-                // niin scrollaaminen ei pätki kun GestureType ei koko ajan vaihtele vertical ja free välillä
-                case GestureType.FreeDrag:
-                    // move the search screen vertically by the drag delta
-                    // amount.
-                    Offset += gesture.Delta.Y;
-                    break;
-                case GestureType.Flick:
-                    // add velocity to screen (only interested in changes to Y velocity).
-                    Velocity -= gesture.Delta.Y;
-                    break;
-            }
-            base.Update(gesture);
         }
     }
     public class MapScreen : Screen
