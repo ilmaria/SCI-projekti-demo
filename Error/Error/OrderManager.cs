@@ -34,8 +34,8 @@ namespace Error
         {
             foreach (var line in order.Lines)
             {
-                var products = Storage.GetByProductCode(line.ProductCode);
-                bool productMissing = (from p in products where p.Amount >= line.Amount select p).Count() <= 0;
+                var productKeys = Storage.GetByProductCode(line.ProductCode);
+                bool productMissing = (from p in productKeys where Storage.GetProduct(p).Amount >= line.Amount select p).Count() <= 0;
                 if (productMissing)
                 {
                     order.State |= STATE.PRODUCT_MISSING;

@@ -380,7 +380,7 @@ namespace Error
                     var products = Storage.GetByProductCode(CollectingData.CurrentLine.ProductCode);
                     foreach (var p in products)
                     {
-                        points.Add(Storage.Map.PhysicalToInternalCoordinates(p.BoundingBox.Center()));
+                        points.Add(Storage.Map.PhysicalToInternalCoordinates(Storage.GetProduct(p).BoundingBox.Center()));
                     }
                     UpdateMapTexture(Storage.Map, CollectingData.Path, points.ToArray());
                 }
@@ -515,8 +515,9 @@ namespace Error
             int index = 1;
             Point offset = new Point(0, 100);
             int itemHeight = 50;
-            foreach (var p in foundProducts)
+            foreach (var k in foundProducts)
             {
+                var p = Storage.GetProduct(k);
                 var item = new ListItem(index, offset,
                     "Hylly: " + p.ShelfCode,
                     new List<string> 
@@ -599,7 +600,7 @@ namespace Error
                 float height = 1f;
                 product.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
 
-                storage.Add(product);
+                storage.AddProduct(product);
             }
             storage.CreateMap(1f);
             return storage;
@@ -678,10 +679,10 @@ namespace Error
                     OrderLine line = permutations[iPermutation][iLine];
 
                     // find the nearest item in storage that has enough this product
-                    Product product = Storage.FindNearestToCollect(line.ProductCode, line.Amount, currentLocation);
+                    int productKey = Storage.FindNearestToCollect(line.ProductCode, line.Amount, currentLocation);
 
                     // esteetön sijanti josta tuotetta voidaan kerätä, ts. varastopaikan vieressä
-                    Point collectingLocation = Storage.Map.FindCollectingPoint(product.BoundingBox);
+                    Point collectingLocation = Storage.Map.FindCollectingPoint(Storage.GetProduct(productKey).BoundingBox);
 
                     float dt;
                     Storage.PathFinder.FindPath(currentLocation, collectingLocation, out dt);
@@ -707,7 +708,7 @@ namespace Error
     public class CollectingData
     {
         public List<Point> Path;
-        public Product CurrentProduct;
+        public int CurrentProductKey;
         public Order CurrentOrder;
         public int CurrentLineIndex;
         public bool ShowLineInfo = true;
@@ -733,7 +734,7 @@ namespace Error
         public void CollectCurrentLine()
         {
             CurrentLine.State = STATE.COLLECTED;
-            App.Instance.Storage.Collect(CurrentProduct, CurrentLine.Amount);
+            App.Instance.Storage.Collect(CurrentProductKey, CurrentLine.Amount);
             CurrentLocation_AStar = CurrentDestination_AStar;
 
             if (CurrentLineIndex >= CurrentOrder.Lines.Count - 1)
@@ -746,8 +747,8 @@ namespace Error
             CurrentLineIndex++;
             OrderLine line = CurrentLine;
             // todo check currentproduct
-            CurrentProduct = App.Instance.Storage.FindNearestToCollect(line.ProductCode, line.Amount, CurrentLocation_AStar);
-            CurrentDestination_AStar = App.Instance.Storage.Map.FindCollectingPoint(CurrentProduct.BoundingBox);
+            CurrentProductKey = App.Instance.Storage.FindNearestToCollect(line.ProductCode, line.Amount, CurrentLocation_AStar);
+            CurrentDestination_AStar = App.Instance.Storage.Map.FindCollectingPoint(App.Instance.Storage.GetProduct(CurrentProductKey).BoundingBox);
             float time;
             Path = App.Instance.Storage.PathFinder.FindPath(CurrentLocation_AStar, CurrentDestination_AStar, out time);
         }

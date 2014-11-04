@@ -162,8 +162,8 @@ namespace Error
                 App.SpriteBatch.DrawStringCentered(App.Font, order.RequestedShippingDate.ToString(), new Rectangle(240, 0, 240, 50), Color.Black, 0.5f);
             }
             OrderLine line = App.Instance.CollectingData.CurrentLine;
-            Product product = App.Instance.CollectingData.CurrentProduct;
-            if (App.Instance.CollectingData.ShowLineInfo && line != null && product != null)
+            Product product = App.Instance.Storage.GetProduct(App.Instance.CollectingData.CurrentProductKey);
+            if (App.Instance.CollectingData.ShowLineInfo && line != null)
             {
                 App.SpriteBatch.DrawStringCentered(App.Font,
                     "tuote " + (App.Instance.CollectingData.CurrentLineIndex + 1) + "/" + order.Lines.Count,
