@@ -63,6 +63,8 @@ namespace Error
         Screen startScreen;
         Screen searchScreen;
         Screen mapScreen;
+        Screen orderInfoScreen;
+        Screen productInfoScreen;
         Screen showOrdersScreen;
         Texture2D mapIcon, listIcon, changeIcon, searchIcon, locationIcon;
 
@@ -211,6 +213,10 @@ namespace Error
             searchScreen.IsScrollable = true;
             mapScreen = new MapScreen();
             collectingScreen = new CollectingScreen();
+            orderInfoScreen = new Screen("orderInfo");
+            orderInfoScreen.IsScrollable = true;
+            productInfoScreen = new Screen("productInfo");
+            productInfoScreen.IsScrollable = true;
             showOrdersScreen = new Screen("showOrders");
             showOrdersScreen.IsScrollable = true;
 
@@ -357,7 +363,15 @@ namespace Error
                 Text = "tiedot",
                 Icon = listIcon,
                 TouchArea = new Rectangle(120, 680, 120, 120),
-                Click = delegate() { /* TODO */}
+                Click = delegate() 
+                {
+                    if (!IsDataImported)
+                    {
+                        ShowMessage("Virhe : Dataa ei luettu");
+                        return;
+                    }
+                    showOrderInfo(CollectingData.CurrentOrder);
+                }
             };
             Button changeButton = new Button
             {
@@ -436,6 +450,17 @@ namespace Error
                 Icon = listIcon,
                 TouchArea = new Rectangle(240, 680, 120, 120),
                 Click = ShowOrders
+            };
+            // t‰‰ nappi n‰ytt‰‰ varaston kaikki samaa tuotekoodia olevat tuotteet
+            Button showProductsButton = new Button
+            {
+                Name = "showProducts",
+                Text = "N‰yt‰ tuotteen kaikki varastopaikat",
+                Icon = listIcon,
+                TouchArea = new Rectangle(60, 500, 360, 75),
+                Click = delegate() 
+                {
+                }
             };
             #endregion
 
@@ -558,7 +583,7 @@ namespace Error
                                 o.RequestedShippingDate.Date.ToShortDateString(),
                                 o.Lines.Count.ToString() + " rivi‰" 
                             },
-                    null,
+                    delegate() { showOrderInfo(o); },
                     index.ToString(),
                     false);
 
@@ -568,6 +593,99 @@ namespace Error
                 index++;
             }
             showOrdersScreen.Height = 100 + orders.Count * itemHeight;
+        }
+        /*
+         * N‰yt‰ yksitt‰isen tilauksen tiedot. Voi myˆs tarkastella yksitt‰isi‰ tuotteita.
+         */
+        public void showOrderInfo(Order order)
+        {
+            navigationStack.Push(orderInfoScreen);
+
+            if (order != null)
+            {
+                int index = 1;
+                Point offset = new Point(0, 100);
+                int itemHeight = 0;
+                Point currentLocation = Storage.PackingLocation_AStar;
+                if (CollectingData != null)
+                {
+                    currentLocation = CollectingData.CurrentLocation_AStar;
+                }
+                foreach (var line in order.Lines)
+                {
+                    int productKey = Storage.FindNearestToCollect(line.ProductCode, 0, currentLocation);
+                    Product product = Storage.GetProduct(productKey);
+                    var item = new ListItem(
+                        index,
+                        offset,
+                        product.Description,
+                        new List<string>
+                                {
+                                    "L‰himm‰n tuotteen tiedot",
+                                    "Tuotekoodi: " + product.Code,
+                                    "Tuote: " + product.Description,
+                                    "Lavapaikka: " + product.PalletCode,    // oikea nimi?
+                                    "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
+                                    "M‰‰r‰: " + product.Amount.ToString(),
+                                    "Pakettikoko: " + product.PackageSize.ToString(),
+                                    "Valmistusp‰iv‰: " + product.ProductionDate.ToString(),
+                                    "Saapunut varastoon: " + product.InsertionDate.ToString(),
+                                    "Muokattu viimeksi: " + product.ModifiedDate.ToString(),    // onko parempaa nime‰?
+                                    "Lis‰tiedot: " + product.ExtraNotes
+                                    /*"Sijainti: " + product.BoundingBox*/
+                                },
+                        delegate() { showProductInfo(product); },
+                        index.ToString(),
+                        false);
+
+                    itemHeight = item.TouchArea.Height + 10;
+                    orderInfoScreen.Add(item);
+                    offset.Y += itemHeight;
+                    index++;
+                }
+                orderInfoScreen.Height = 100 + (index - 1) * itemHeight;
+            }
+
+        }
+        public void showProductInfo(Product product)
+        {
+            navigationStack.Push(productInfoScreen);
+
+            int index = 1;
+            Point offset = new Point(0, 100);
+            int itemHeight = 0;
+
+            var item = new ListItem(
+                index,
+                offset,
+                product.Description,
+                new List<string>
+                        {
+                            "L‰himm‰n tuotteen tiedot",
+                            "Tuotekoodi: " + product.Code,
+                            "Tuote: " + product.Description,
+                            "Lavapaikka: " + product.PalletCode,    // oikea nimi?
+                            "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
+                            "M‰‰r‰: " + product.Amount.ToString(),
+                            "Pakettikoko: " + product.PackageSize.ToString(),
+                            "Valmistusp‰iv‰: " + product.ProductionDate.ToString(),
+                            "Saapunut varastoon: " + product.InsertionDate.ToString(),
+                            "Muokattu viimeksi: " + product.ModifiedDate.ToString(),    // onko parempaa nime‰?
+                            "Lis‰tiedot: " + product.ExtraNotes
+                            /*"Sijainti: " + product.BoundingBox*/
+                        },
+                null,
+                index.ToString(),
+                false);
+
+            itemHeight = item.TouchArea.Height + 10;
+            productInfoScreen.Add(item);
+
+            // s‰‰d‰ "showProducts" -napin sijainti sopivaksi
+            var showProductsButton = productInfoScreen.ClickableElements["showProducts"];
+            showProductsButton.TouchArea.Y = itemHeight + 20;
+
+            productInfoScreen.Height = 100 + itemHeight + showProductsButton.TouchArea.Height;
         }
         public int GetUniqueKey()
         {
@@ -656,7 +774,7 @@ namespace Error
             ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
             ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
 
-            OrderManager.Add(order, o, oo, ooo,oooo,ooooo);
+            OrderManager.Add(order, o, oo, ooo ,oooo, ooooo);
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
         }
         public void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)

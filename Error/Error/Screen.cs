@@ -130,6 +130,7 @@ namespace Error
             if (IsScrollable)
             {
                 // optimointi puuttuu: scrollbarSize muuttuu vain ruutua vaihtaessa tai uutta hakua tehdessä
+                // --> ei tarvitsisi laskea palkin kokoa uudelleen joka ruudunpäivityksellä
                 int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffset));
                 int scrollbarPos = (int)(Offset / MaxOffset * (App.screenHeight - scrollbarSize));
                 scrollbarArea.Height = scrollbarSize;
