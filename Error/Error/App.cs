@@ -459,7 +459,8 @@ namespace Error
                 Name = "showProducts",
                 Text = "N‰yt‰ tuotteen kaikki varastopaikat",
                 Icon = listIcon,
-                TouchArea = new Rectangle(60, 500, 360, 75),
+                TouchArea = new Rectangle(10, 680, 460, 110),
+                IsFixedPosition = true,
                 Click = delegate() 
                 {
                 }
@@ -470,6 +471,7 @@ namespace Error
             collectingScreen.Add(nextLineButton, mapButton, searchButton,
                 infoButton, changeButton, nextOrderButton,
                 packOrderButton, collectedButton, packedButton);
+            productInfoScreen.Add(showProductsButton);
             //showOrdersScreen.Add(infoButton);
         }
         void AppDeactivated(object sender, DeactivatedEventArgs e)
@@ -685,7 +687,7 @@ namespace Error
 
             // s‰‰d‰ "showProducts" -napin sijainti sopivaksi
             var showProductsButton = productInfoScreen.ClickableElements["showProducts"];
-            showProductsButton.TouchArea.Y = itemHeight + 20;
+            //showProductsButton.TouchArea.Y = itemHeight + 120;
 
             productInfoScreen.Height = 100 + itemHeight + showProductsButton.TouchArea.Height;
         }

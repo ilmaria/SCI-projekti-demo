@@ -39,10 +39,12 @@ namespace Error
             else
             {
                 var rect = r;
-                rect.X += 25;
                 rect.Y += 10;
-                rect.Width -= 50;
                 rect.Height -= 50;
+                int midX = rect.X + rect.Width / 2;
+                rect.Width = rect.Height;
+                rect.X = midX - rect.Width / 2;
+
                 var textrect = new Rectangle(r.X, r.Bottom - 40, TouchArea.Width, 40);
                 App.SpriteBatch.Draw(Icon, rect, UI.ForegroundColor);
                 App.SpriteBatch.DrawStringCentered(App.Font, Text, textrect, UI.ForegroundColor, UI.SmallTextScale);
