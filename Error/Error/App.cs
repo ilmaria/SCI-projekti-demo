@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.IsolatedStorage;
 using System.Linq;
 using Microsoft.Phone.Shell;
 using Microsoft.Xna.Framework;
@@ -701,6 +703,41 @@ namespace Error
             Message = message;
             navigationStack.Clear();
             navigationStack.Push(startScreen);
+        }
+        public void Save(string fileName)
+        {
+            try
+            {
+                IsolatedStorageFile storageFile = IsolatedStorageFile.GetUserStoreForApplication();
+                IsolatedStorageFileStream fs = storageFile.OpenFile(fileName, System.IO.FileMode.OpenOrCreate);
+                StreamWriter sw = new StreamWriter(fs);
+
+                sw.WriteLine(DateTime.Now.ToString());
+
+                sw.Close();
+                fs.Close();
+
+            }
+            catch { }
+        }
+        public void Load(string fileName)
+        {
+            try
+            {
+                IsolatedStorageFile storageFile = IsolatedStorageFile.GetUserStoreForApplication();
+                if (storageFile.FileExists(fileName))
+                {
+
+                    IsolatedStorageFileStream fs = storageFile.OpenFile(fileName, System.IO.FileMode.Open);
+                    StreamReader sr = new StreamReader(fs);
+
+                    DateTime time = DateTime.Parse(sr.ReadLine());
+
+                    sr.Close();
+                    fs.Close();
+                }
+            }
+            catch { }
         }
     }
 
