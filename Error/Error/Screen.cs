@@ -16,6 +16,8 @@ namespace Error
         public float MaxOffset = 0;
         public float Offset = 0;
         public float Velocity = 0;
+        public Rectangle topBar = new Rectangle(0, 0, 480, 80);        // Uudet palkit, joilla voi rajata piirtoaluetta
+        public int bottomBar = 0;
         public Dictionary<string, ClickableElement> ClickableElements;
         static int scrollbarWidth = 5;
         Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
@@ -137,17 +139,13 @@ namespace Error
         public virtual void Draw()
         {
             App.SpriteBatch.Begin();
-            if (Title != null) 
-            {
-                App.SpriteBatch.DrawStringCentered(App.Font, Title, new Rectangle(0, 0, 480, 100), Color.Black, 1f);
-            }
             // piirretään scrollbar jos on scrollattu
             if (IsScrollable)
             {
                 // optimointi puuttuu: scrollbarSize muuttuu vain ruutua vaihtaessa tai uutta hakua tehdessä
                 // --> ei tarvitsisi laskea palkin kokoa uudelleen joka ruudunpäivityksellä
                 int scrollbarSize = (int) (App.screenHeight * App.screenHeight / (App.screenHeight + MaxOffset));
-                int scrollbarPos = (int)(Offset / MaxOffset * (App.screenHeight - scrollbarSize));
+                int scrollbarPos = -topBar.Height + (int)(Offset / MaxOffset * (App.screenHeight - scrollbarSize - topBar.Height));
                 scrollbarArea.Height = scrollbarSize;
                 scrollbarArea.Y = - scrollbarPos;
 
@@ -161,6 +159,12 @@ namespace Error
             foreach (var elem in ClickableElements.Values)
             {
                 if (elem.Visible && elem.IsFixedPosition) elem.Draw(0, 0);
+            }
+            if (Title != null)
+            {
+                App.SpriteBatch.Draw(App.Pixel, topBar, Color.White);
+                UI.DrawBorders(topBar, UI.ThickLineWidth);
+                App.SpriteBatch.DrawStringCentered(App.Font, Title, topBar, Color.Black, 1f);
             }
             App.SpriteBatch.End();
         }
