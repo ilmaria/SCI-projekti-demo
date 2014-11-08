@@ -211,15 +211,14 @@ namespace Error
         void SetupScreens()
         {
             startScreen = new StartScreen();
-            searchScreen = new Screen("search");
+            searchScreen = new Screen("search", "Hakutulokset");
             searchScreen.IsScrollable = true;
             mapScreen = new MapScreen();
             collectingScreen = new CollectingScreen();
-            orderInfoScreen = new Screen("orderInfo");
+            orderInfoScreen = new Screen("orderInfo", "Tilauksen tuotteet");
             orderInfoScreen.IsScrollable = true;
-            productInfoScreen = new Screen("productInfo");
-            productInfoScreen.IsScrollable = true;
-            showOrdersScreen = new Screen("showOrders");
+            productInfoScreen = new Screen("productInfo", "Tuotetiedot");
+            showOrdersScreen = new Screen("showOrders", "Kaikki tilaukset");
             showOrdersScreen.IsScrollable = true;
 
             #region Buttons
@@ -407,7 +406,7 @@ namespace Error
                 Text = "Etsi",
                 Icon = searchIcon,
                 TouchArea = new Rectangle(360, 680, 120, 120),
-                Click = SearchStorage
+                Click = delegate() { SearchStorage(); }
             };
             Button startCollectingButton = new Button
             {
@@ -458,12 +457,9 @@ namespace Error
             {
                 Name = "showProducts",
                 Text = "N‰yt‰ tuotteen kaikki varastopaikat",
-                Icon = listIcon,
                 TouchArea = new Rectangle(10, 680, 460, 110),
                 IsFixedPosition = true,
-                Click = delegate() 
-                {
-                }
+                Click = delegate() { SearchStorage(productInfoScreen.productCode); }
             };
             #endregion
 
@@ -527,7 +523,7 @@ namespace Error
             SpriteBatch.Draw(locationIcon, r, Color.Red);
             SpriteBatch.End();
         }
-        public void SearchStorage()
+        public void SearchStorage(params string[] text)
         {
             if (!IsDataImported)
             {
@@ -536,8 +532,16 @@ namespace Error
             }
             navigationStack.Push(searchScreen);
 
-            Input.ShowKeyboard("Hae varastosta", "", "ruuvi");
-            var foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText(), 100);
+            List<int> foundProducts;
+            if (text.Length > 0)
+            {
+                foundProducts = App.Instance.Storage.SearchExactText(text[0]);
+            }
+            else
+            {
+                Input.ShowKeyboard("Hae varastosta", "", "ruuvi");
+                foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText(), 100);
+            }
 
             searchScreen.Offset = 0;
             int index = 1;
@@ -553,7 +557,7 @@ namespace Error
                         p.Description + "  " + p.Code,
                         p.Amount + " kpl hyllyss‰"
                     },
-                    null,
+                    delegate() { showProductInfo(p); },
                     index.ToString(),
                     false);
 
@@ -632,9 +636,9 @@ namespace Error
                                     "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
                                     "M‰‰r‰: " + product.Amount.ToString(),
                                     "Pakettikoko: " + product.PackageSize.ToString(),
-                                    "Valmistusp‰iv‰: " + product.ProductionDate.ToString(),
-                                    "Saapunut varastoon: " + product.InsertionDate.ToString(),
-                                    "Muokattu viimeksi: " + product.ModifiedDate.ToString(),    // onko parempaa nime‰?
+                                    "Valmistusp‰iv‰: " + product.ProductionDate.ToShortDateString(),
+                                    "Saapunut varastoon: " + product.InsertionDate.ToShortDateString(),
+                                    "Muokattu viimeksi: " + product.ModifiedDate.ToShortDateString(),    // onko parempaa nime‰?
                                     "Lis‰tiedot: " + product.ExtraNotes
                                     /*"Sijainti: " + product.BoundingBox*/
                                 },
@@ -653,7 +657,12 @@ namespace Error
         }
         public void showProductInfo(Product product)
         {
+            if (navigationStack.Contains(productInfoScreen))
+            { 
+                while (navigationStack.Pop() != productInfoScreen) { continue; }
+            }
             navigationStack.Push(productInfoScreen);
+            productInfoScreen.productCode = product.Code;
 
             int index = 1;
             Point offset = new Point(0, 100);
@@ -672,9 +681,9 @@ namespace Error
                             "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
                             "M‰‰r‰: " + product.Amount.ToString(),
                             "Pakettikoko: " + product.PackageSize.ToString(),
-                            "Valmistusp‰iv‰: " + product.ProductionDate.ToString(),
-                            "Saapunut varastoon: " + product.InsertionDate.ToString(),
-                            "Muokattu viimeksi: " + product.ModifiedDate.ToString(),    // onko parempaa nime‰?
+                            "Valmistusp‰iv‰: " + product.ProductionDate.ToShortDateString(),
+                            "Saapunut varastoon: " + product.InsertionDate.ToShortDateString(),
+                            "Muokattu viimeksi: " + product.ModifiedDate.ToShortDateString(),    // onko parempaa nime‰?
                             "Lis‰tiedot: " + product.ExtraNotes
                             /*"Sijainti: " + product.BoundingBox*/
                         },

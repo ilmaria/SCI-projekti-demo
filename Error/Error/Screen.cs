@@ -12,6 +12,7 @@ namespace Error
          * kuin haluaa pysty‰ kelaamaan ruutua alas.
          */
         public string Name = null;
+        public string Title = null;
         public float MaxOffset = 0;
         public float Offset = 0;
         public float Velocity = 0;
@@ -20,10 +21,20 @@ namespace Error
         Rectangle scrollbarArea = new Rectangle(App.screenWidth - scrollbarWidth, 0, scrollbarWidth, 10);
         public int Height = App.screenHeight; // muutetaan todelliseen arvoon
         public bool IsScrollable = false;
-
-        public Screen(string name)
+        public string productCode;  // en saanut t‰t‰ toimimaan omassa productionInfoScreen aliluokassa
+                                    // joten nyt se on t‰ss‰ yleisess‰ luokassa vaikka sit‰ tarvitaan vain
+                                    // tuossa productInfoScreeniss‰
+        public Screen(params string[] name)
         {
-            Name = name;
+            if (name.Length > 0) 
+            {
+                Name = name[0];
+            }
+            if (name.Length > 1)
+            {
+                Title = name[1];
+            }
+            
             ClickableElements = new Dictionary<string, ClickableElement>();
         }
         public void Add(params ClickableElement[] elements)
@@ -126,6 +137,10 @@ namespace Error
         public virtual void Draw()
         {
             App.SpriteBatch.Begin();
+            if (Title != null) 
+            {
+                App.SpriteBatch.DrawStringCentered(App.Font, Title, new Rectangle(0, 0, 480, 100), Color.Black, 1f);
+            }
             // piirret‰‰n scrollbar jos on scrollattu
             if (IsScrollable)
             {
@@ -201,5 +216,5 @@ namespace Error
             App.Instance.DrawMapScreen();
             base.Draw();
         }
-    }    
+    } 
 }
