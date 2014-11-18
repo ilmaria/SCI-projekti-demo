@@ -735,6 +735,92 @@ namespace Error
             storage.CreateMap(1f);
             return storage;
         }
+        Storage ReadMapFromTextFile()
+        {
+            float scale = 0.001f;
+            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/map.txt");
+            Storage storage = new Storage(0);
+            string[] args;
+            float x, y, z, dx, dy, dz;
+            Vector3 packingPosition = Vector3.Zero;
+            foreach (string line in textLines)
+            {
+                string key, value;
+                if (ParseLine(line, out key, out value))
+                {
+                    switch (key)
+                    {
+                        case "VARASTO":
+                            args = value.Split(' ');
+                            x = int.Parse(args[0]) * scale;
+                            y = int.Parse(args[1]) * scale;
+                            z = int.Parse(args[2]) * scale;
+                            dx = int.Parse(args[3]) * scale;
+                            dy = int.Parse(args[4]) * scale;
+                            dz = int.Parse(args[5]) * scale;
+                            storage.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + dx, y + dy, z + dz));
+                            break;
+                        case "PAKKAUSPISTE":
+                            args = value.Split(' ');
+                            x = int.Parse(args[0]) * scale;
+                            y = int.Parse(args[1]) * scale;
+                            z = int.Parse(args[2]) * scale;
+                            packingPosition = new Vector3(x, y, z);
+                            break;
+                        case "SHELF":
+                        case "HYLLY":
+                            args = value.Split(' ');
+                            string shelfCode = args[0];
+                            string corridor = args[1];
+                            float x0 = int.Parse(args[2]) * scale;
+                            float y0 = int.Parse(args[3]) * scale;
+                            float z0 = int.Parse(args[4]) * scale;
+                            int nx = int.Parse(args[5]);
+                            int ny = int.Parse(args[6]);
+                            int nz = int.Parse(args[7]);
+
+                            // lis‰t‰‰n kaikki t‰ss‰ varastopaikassa olevat lavapaikat
+                            for (int ix = 0; ix < nx; ix++)
+                            {
+                                for (int iy = 0; iy < ny; iy++)
+                                {
+                                    for (int iz = 0; iz < nz; iz++)
+                                    {
+                                        Pallet pallet = new Pallet();
+                                        pallet.ShelfCode = shelfCode; // 1005
+                                        pallet.PalletCode = shelfCode + corridor + "/" + iz; // 1005D/3
+                                        x = x0 + ix * Pallet.EUR_PALLET_LONG_SIDE_METERS;
+                                        y = y0 + iy * Pallet.EUR_PALLET_SHORT_SIDE_METERS;
+                                        z = z0 + iz * Pallet.EUR_PALLET_HEIGHT_METERS;
+
+                                        pallet.BoundingBox = new BoundingBox(new Vector3(x, y, z),
+                                            new Vector3(x + Pallet.EUR_PALLET_LONG_SIDE_METERS,
+                                                y + Pallet.EUR_PALLET_SHORT_SIDE_METERS,
+                                                z + Pallet.EUR_PALLET_HEIGHT_METERS));
+
+                                        storage.Pallets.Add(pallet);
+                                    }
+                                }
+                            }
+                            break;
+                        case "ESTE":
+                            args = value.Split(' ');
+                            x = int.Parse(args[0]) * scale;
+                            y = int.Parse(args[1]) * scale;
+                            z = int.Parse(args[2]) * scale;
+                            dx = int.Parse(args[3]) * scale;
+                            dy = int.Parse(args[4]) * scale;
+                            dz = int.Parse(args[5]) * scale;
+                            var b = new BoundingBox(new Vector3(x, y, z), new Vector3(x + dx, y + dy, z + dz));
+                            storage.Add(b);
+                            break;
+                    }
+                }
+            }
+            storage.CreateMap(0.25f);
+            storage.PackingLocation_AStar = storage.Map.PhysicalToInternalCoordinates(packingPosition);
+            return storage;
+        }
         void ReadProductsFromTextFile(Storage storage)
         {
             string[] textLines = Error.IO.ReadAllLines(@"InputFiles/products.txt");
@@ -752,6 +838,19 @@ namespace Error
                             break;
                         case "END":
                             // todo assert validity
+
+                            // find physical location of product
+                            // first try to search with exact lavakoodi
+                            var pallets = (from p in storage.Pallets where p.PalletCode == product.PalletCode select p);
+                            if (pallets.Count() == 0)
+                            {
+                                pallets = (from p in storage.Pallets where p.ShelfCode == product.ShelfCode select p);
+                            }
+                            product.BoundingBox = new BoundingBox();
+                            if (pallets.Count() != 0) // muuten huonompi juttu
+                            {
+                                product.BoundingBox = pallets.ToList()[0].BoundingBox;
+                            }
                             storage.AddProduct(product);
                             break;
                         case "NAME":

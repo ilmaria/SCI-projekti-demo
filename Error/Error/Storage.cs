@@ -14,12 +14,14 @@ namespace Error
         public Point PackingLocation_AStar;
 
         Dictionary<int, Product> _products;
+        public List<Pallet> Pallets;
 
         public Storage(int count)
         {
             Obstacles = new List<BoundingBox>(0);
             BoundingBox = new BoundingBox(Vector3.Zero, Vector3.Zero);
             _products = new Dictionary<int, Product>(count);
+            Pallets = new List<Pallet>();
         }
         // call this after adding obstacles and products
         public void CreateMap(float resolution_in_metres)
@@ -48,6 +50,10 @@ namespace Error
             foreach (var product in _products.Values)
             {
                 if (product.BoundingBox.Intersects(b)) return false;
+            }
+            foreach (var pallet in Pallets)
+            {
+                if (pallet.BoundingBox.Intersects(b)) return false;
             }
             return true;
         }
@@ -155,8 +161,8 @@ namespace Error
     {
         public string Code;// asdfsadfsf26565ddsa
         public string Description;//"ruuvi sinkitty 5x70"
-        public string PalletCode;// 1005, E21B3 == lavapaikka
-        public string ShelfCode;// 1005/6? E21B3
+        public string PalletCode;// 1005K/6, E21B3 == lavapaikka
+        public string ShelfCode;// 1005 varastopaikka
         public int Amount;// num_packets = amount/PacketSize
         public int PackageSize;
         public DateTime ProductionDate; // when product was manufactured
@@ -165,5 +171,15 @@ namespace Error
         //näistä saa nopeasti ja helposti tehtyä vaikka 3d kuvan...
         public BoundingBox BoundingBox;//fyysinen sijainti, xmin ymin zmin xmax ymax zmax. z korkeus, 1.kerroksen lattia z=0
         public string ExtraNotes;
+    }
+    public struct Pallet
+    {
+        public string PalletCode;
+        public string ShelfCode;
+        public BoundingBox BoundingBox;
+
+        public const float EUR_PALLET_SHORT_SIDE_METERS = 0.8f;
+        public const float EUR_PALLET_LONG_SIDE_METERS = 1.2f;
+        public const float EUR_PALLET_HEIGHT_METERS = 1f; //...
     }
 }

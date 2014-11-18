@@ -2,7 +2,7 @@
 yksiköt millimetrejä
 
 hyllyt: hyllynumero käytävä x-sijanti y-sijainti z-sijainti lavoja x-suunnassa y-suunnassa z-suunnassa
-lavat eurolavoja 800mm X 1600mm (X 1000mm)
+lavat eurolavoja 800mm X 1200mm (X 1000mm)
 
 varasto, este X,Y,Z,DX,DY,DZ
 
