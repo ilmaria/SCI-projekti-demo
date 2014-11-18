@@ -888,9 +888,10 @@ namespace Error
 
             line.Remove(0, 1); // remove #
             var parts = line.Split('=');
-            if (parts.Length != 2) return false;
+            if (parts.Length == 0) return false;
             key = parts[0];
-            value = parts[1];
+            if (parts.Length > 1)
+                value = parts[1];
             return true;
         }
         void ReadOrders()
