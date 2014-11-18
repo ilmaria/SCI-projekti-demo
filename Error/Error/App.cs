@@ -539,8 +539,8 @@ namespace Error
             }
             else
             {
-                Input.ShowKeyboard("Hae varastosta", "", "ruuvi");
-                foundProducts = App.Instance.Storage.SearchPartialText(Input.GetTypedText(), 100);
+                IO.ShowKeyboard("Hae varastosta", "", "ruuvi");
+                foundProducts = App.Instance.Storage.SearchPartialText(IO.GetTypedText(), 100);
             }
 
             searchScreen.Offset = 0;
@@ -735,8 +735,68 @@ namespace Error
             storage.CreateMap(1f);
             return storage;
         }
+        void ReadProductsFromTextFile(Storage storage)
+        {
+            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/products.txt");
+            Product product = new Product(); // assign value only to suppress compiler error
+
+            foreach (string line in textLines)
+            {
+                string key, value;
+                if (ParseLine(line, out key, out value))
+                {
+                    switch (key)
+                    {
+                        case "BEGIN":
+                            product = new Product();
+                            break;
+                        case "END":
+                            // todo assert validity
+                            storage.AddProduct(product);
+                            break;
+                        case "NAME":
+                            product.Description = value;
+                            break;
+                        case "PRODUCTCODE":
+                            product.Code = value;
+                            break;
+                        case "SHELFCODE":
+                            product.ShelfCode = value;
+                            break;
+                        case "PALLETCODE":
+                            product.PalletCode = value;
+                            break;
+                        case "NOTES":
+                            product.ExtraNotes = value;
+                            break;
+                        case "AMOUNT":
+                            product.Amount = int.Parse(value);
+                            break;
+                        case "PRODUCTIONDATE":
+                            product.ProductionDate = DateTime.Parse(value);
+                            break;
+                    }
+                }
+            }
+        }
+        static bool ParseLine(string line, out string key, out string value)
+        {
+            key = null;
+            value = null;
+            line.Trim();
+
+            if (!line.StartsWith("#")) return false;
+
+            line.Remove(0, 1); // remove #
+            var parts = line.Split('=');
+            if (parts.Length != 2) return false;
+            key = parts[0];
+            value = parts[1];
+            return true;
+        }
         void ReadOrders()
         {
+            ReadOrdersFromTextFile();
             OrderManager = new OrderManager();
 
             Order order = new Order();
@@ -789,6 +849,41 @@ namespace Error
 
             OrderManager.Add(order, o, oo, ooo ,oooo, ooooo);
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
+        }
+        void ReadOrdersFromTextFile()
+        {
+            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/orders.txt");
+            Order order = new Order();
+
+            foreach (string line in textLines)
+            {
+                string key, value;
+                if (ParseLine(line, out key, out value))
+                {
+                    switch (key)
+                    {
+                        case "BEGIN_ORDER":
+                            order = new Order();
+                            break;
+                        case "END_ORDER":
+                            // todo assert validity
+                            OrderManager.Add(order);
+                            break;
+                        case "CUSTOMER":
+                            order.Customer = value;
+                            break;
+                        case "SHIPPINGDATE":
+                            order.RequestedShippingDate = DateTime.Parse(value);
+                            break;
+                        case "LINE":
+                            if (order.Lines == null)
+                                order.Lines = new List<OrderLine>();
+                            var parts = value.Split(' ');
+                            order.Lines.Add(new OrderLine { ProductCode = parts[0], Amount = int.Parse(parts[1]) });
+                            break;
+                    }
+                }
+            }
         }
         public void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
         {

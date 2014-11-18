@@ -1,10 +1,11 @@
 using System;
+using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.GamerServices;
 
 namespace Error
 {
-    public static class Input
+    public static class IO
     {
         static IAsyncResult kbResult;
         static string typedText;
@@ -25,6 +26,18 @@ namespace Error
         static void GetTypedChars(IAsyncResult r)
         {
             typedText = Guide.EndShowKeyboardInput(r) ?? string.Empty;
+        }
+        public static string[] ReadAllLines(string filename)
+        {
+            string text;
+            using (Stream stream = TitleContainer.OpenStream(filename))
+            {
+                using (StreamReader r = new StreamReader(stream))
+                {
+                    text = r.ReadToEnd();
+                }
+            }
+            return text.Split('\n');
         }
     }
 }

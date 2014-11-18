@@ -70,7 +70,7 @@
     <Compile Include="AStar.cs" />
     <Compile Include="BinaryHeap.cs" />
     <Compile Include="Button.cs" />
-    <Compile Include="Input.cs" />
+    <Compile Include="IO.cs" />
     <Compile Include="Map.cs" />
     <Compile Include="Order.cs" />
     <Compile Include="OrderManager.cs" />
@@ -90,6 +90,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Game.ico" />
+    <Content Include="InputFiles\map.txt" />
+    <Content Include="InputFiles\orders.txt" />
+    <Content Include="InputFiles\products.txt" />
     <Content Include="PhoneGameThumb.png">
       <XnaPlatformSpecific>true</XnaPlatformSpecific>
     </Content>
