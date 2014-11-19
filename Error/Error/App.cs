@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using System.Globalization;
 
 /* Toimivat ominaisuudet:
  * Jos tuotetta useissa sijainneissa, l‰himm‰n sijainnin lˆyt‰minen jossa riitt‰v‰sti tuotetta
@@ -38,6 +39,9 @@ using Microsoft.Xna.Framework.Input.Touch;
 //Hyllyjen optimaalinen t‰yttˆ tuotteilla
 // ui osia
 // tilausten v‰linen j‰rjestely
+
+// varastopaikka = shelfCode = 1005
+// lavapaikka = palletCode = 1005E/3
 
 namespace Error
 {
@@ -74,7 +78,7 @@ namespace Error
         Color[] mapColors;// --> map-luokkaan
         Texture2D mapTexture;
         // pakkauspˆyd‰n sijainti fyysisiss‰ koordinaateissa (ei A* - koordinaateissa)
-        Vector3 _packingPosition;// --> storage-luokkaan
+        //Vector3 _packingPosition;// --> storage-luokkaan
         int lastKey = 0;
 
         static App _app;
@@ -82,6 +86,10 @@ namespace Error
         {
             get { return _app; }
         }
+        CultureInfo fin = new CultureInfo("fi-FI");
+
+        public const int INVALID_KEY = int.MinValue;
+        
         #endregion
 
         public App()
@@ -229,21 +237,10 @@ namespace Error
                 TouchArea = new Rectangle(60, 400, 360, 90),
                 Click = delegate()
                 {
-                    Storage = ReadStorageData();
-                    ReadOrders();
-
-                    // todo
-                    Point dropoffAstar;
-                    while (true)
-                    {
-                        dropoffAstar = new Point(Random.Next(Storage.Map.SizeX), Random.Next(Storage.Map.SizeY));
-                        if (!Storage.Map[dropoffAstar.X, dropoffAstar.Y].IsTraversable) continue;
-                        if (Storage.Map.Contains(dropoffAstar)) break;
-                    }
-                    // oikeasti t‰m‰ on tietysti tiedossa etuk‰teen
-                    _packingPosition = Storage.Map.InternalToPhysicalCoordinates(dropoffAstar);
-                    Storage.PackingLocation_AStar = dropoffAstar;
-
+                    Storage = ReadMapFromTextFile(@"InputFiles/map.txt");
+                    ReadProductsFromTextFile(Storage, @"InputFiles/products.txt");
+                    OrderManager = new OrderManager();
+                    ReadOrdersFromTextFile(@"InputFiles/orders.txt");
                     IsDataImported = true;
                     ShowMessage("Data luettu");
                 }
@@ -290,7 +287,7 @@ namespace Error
                 {
                     CollectingData.ShowLineInfo = false;
                     CollectingData.ShowOrderInfo = false;
-                    CollectingData.CurrentLocation_AStar = Storage.Map.PhysicalToInternalCoordinates(_packingPosition);
+                    CollectingData.CurrentLocation_AStar = Storage.PackingLocation_AStar;
                     // check if there are orders to collect
                     if(OrderManager.IsOrderAvailable())
                     {
@@ -456,7 +453,7 @@ namespace Error
             Button showProductsButton = new Button
             {
                 Name = "showProducts",
-                Text = "N‰yt‰ tuotteen kaikki varastopaikat",
+                Text = "Kaikki varastopaikat",
                 TouchArea = new Rectangle(10, 680, 460, 110),
                 IsFixedPosition = true,
                 Click = delegate() { SearchStorage(productInfoScreen.productCode); }
@@ -511,6 +508,7 @@ namespace Error
         }
         public void DrawMapScreen()
         {
+            GraphicsDevice.Clear(Color.Gray);
             SpriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, PointSampler, DepthStencilState.None, RasterizerState.CullNone);
             SpriteBatch.Draw(mapTexture, new Rectangle(0, 160, 480, 480), Color.White);
             Point location = CollectingData.CurrentLocation_AStar;
@@ -551,7 +549,7 @@ namespace Error
             {
                 var p = Storage.GetProduct(k);
                 var item = new ListItem(index, offset,
-                    "Hylly: " + p.ShelfCode,
+                    p.PalletCode,
                     new List<string> 
                     { 
                         p.Description + "  " + p.Code,
@@ -591,6 +589,7 @@ namespace Error
                                 o.RequestedShippingDate.Date.ToShortDateString(),
                                 o.Lines.Count.ToString() + " rivi‰" 
                             },
+                    // mit‰h‰n t‰ss‰ tapahtuu? mink‰ tahansa tilauksen klikkaaminen n‰ytt‰‰ saman tilauksen tiedot
                     delegate() { showOrderInfo(o); },
                     index.ToString(),
                     false);
@@ -621,30 +620,40 @@ namespace Error
                 }
                 foreach (var line in order.Lines)
                 {
-                    int productKey = Storage.FindNearestToCollect(line.ProductCode, 0, currentLocation);
-                    Product product = Storage.GetProduct(productKey);
                     var item = new ListItem(
                         index,
                         offset,
-                        product.Description,
+                        string.Empty,
                         new List<string>
                                 {
-                                    "L‰himm‰n tuotteen tiedot",
-                                    "Tuotekoodi: " + product.Code,
-                                    "Tuote: " + product.Description,
-                                    "Lavapaikka: " + product.PalletCode,    // oikea nimi?
-                                    "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
-                                    "M‰‰r‰: " + product.Amount.ToString(),
-                                    "Pakettikoko: " + product.PackageSize.ToString(),
-                                    "Valmistusp‰iv‰: " + product.ProductionDate.ToShortDateString(),
-                                    "Saapunut varastoon: " + product.InsertionDate.ToShortDateString(),
-                                    "Muokattu viimeksi: " + product.ModifiedDate.ToShortDateString(),    // onko parempaa nime‰?
-                                    "Lis‰tiedot: " + product.ExtraNotes
+                                    //"L‰himm‰n tuotteen tiedot",
+                                    "Tuotekoodi: " + line.ProductCode,
+                                    //"Tuote: " + product.Description,
+                                    //"Lavapaikka: " + product.PalletCode,    // oikea nimi?
+                                    //"Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
+                                    "M‰‰r‰: " + line.Amount.ToString(),
+                                    //"Pakettikoko: " + product.PackageSize.ToString(),
+                                    //"Valmistusp‰iv‰: " + product.ProductionDate.ToShortDateString(),
+                                    //"Saapunut varastoon: " + product.InsertionDate.ToShortDateString(),
+                                    //"Muokattu viimeksi: " + product.ModifiedDate.ToShortDateString(),    // onko parempaa nime‰?
+                                    //"Lis‰tiedot: " + product.ExtraNotes
                                     /*"Sijainti: " + product.BoundingBox*/
                                 },
-                        delegate() { showProductInfo(product); },
+                        delegate() {},
                         index.ToString(),
                         false);
+
+                    int productKey = Storage.FindNearestToCollect(line.ProductCode, 0, currentLocation);
+                    if (productKey == INVALID_KEY)
+                    { // tuotetta ei varastossa
+                        item.Title = "Tuotetta ei varastossa";
+                    }
+                    else
+                    {
+                        Product product = Storage.GetProduct(productKey);
+                        item.Title = product.Description;
+                        item.Click = delegate() { showProductInfo(product); };
+                    }
 
                     itemHeight = item.TouchArea.Height + 10;
                     orderInfoScreen.Add(item);
@@ -678,7 +687,7 @@ namespace Error
                             "Tuotekoodi: " + product.Code,
                             "Tuote: " + product.Description,
                             "Lavapaikka: " + product.PalletCode,    // oikea nimi?
-                            "Hyllypaikka: " + product.ShelfCode,    // oikea nimi?
+                            "Varastopaikka: " + product.ShelfCode,    // oikea nimi?
                             "M‰‰r‰: " + product.Amount.ToString(),
                             "Pakettikoko: " + product.PackageSize.ToString(),
                             "Valmistusp‰iv‰: " + product.ProductionDate.ToShortDateString(),
@@ -735,10 +744,10 @@ namespace Error
             storage.CreateMap(1f);
             return storage;
         }
-        Storage ReadMapFromTextFile()
+        Storage ReadMapFromTextFile(string filename)
         {
             float scale = 0.001f;
-            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/map.txt");
+            string[] textLines = Error.IO.ReadAllLines(filename);
             Storage storage = new Storage(0);
             string[] args;
             float x, y, z, dx, dy, dz;
@@ -788,14 +797,14 @@ namespace Error
                                     {
                                         Pallet pallet = new Pallet();
                                         pallet.ShelfCode = shelfCode; // 1005
-                                        pallet.PalletCode = shelfCode + corridor + "/" + iz; // 1005D/3
+                                        pallet.PalletCode = shelfCode + corridor + "/" + (iz + 1); // 1005D/3
                                         x = x0 + ix * Pallet.EUR_PALLET_LONG_SIDE_METERS;
-                                        y = y0 + iy * Pallet.EUR_PALLET_SHORT_SIDE_METERS;
+                                        y = y0 + iy * (Pallet.EUR_PALLET_SHORT_SIDE_METERS + 0.2f);
                                         z = z0 + iz * Pallet.EUR_PALLET_HEIGHT_METERS;
 
                                         pallet.BoundingBox = new BoundingBox(new Vector3(x, y, z),
                                             new Vector3(x + Pallet.EUR_PALLET_LONG_SIDE_METERS,
-                                                y + Pallet.EUR_PALLET_SHORT_SIDE_METERS,
+                                                y + (Pallet.EUR_PALLET_SHORT_SIDE_METERS + 0.2f),
                                                 z + Pallet.EUR_PALLET_HEIGHT_METERS));
 
                                         storage.Pallets.Add(pallet);
@@ -821,9 +830,9 @@ namespace Error
             storage.PackingLocation_AStar = storage.Map.PhysicalToInternalCoordinates(packingPosition);
             return storage;
         }
-        void ReadProductsFromTextFile(Storage storage)
+        void ReadProductsFromTextFile(Storage storage, string filename)
         {
-            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/products.txt");
+            string[] textLines = Error.IO.ReadAllLines(filename);
             Product product = new Product(); // assign value only to suppress compiler error
 
             foreach (string line in textLines)
@@ -872,7 +881,10 @@ namespace Error
                             product.Amount = int.Parse(value);
                             break;
                         case "PRODUCTIONDATE":
-                            product.ProductionDate = DateTime.Parse(value);
+                            product.ProductionDate = DateTime.Parse(value, fin);
+                            break;
+                        case "PACKAGESIZE":
+                            product.PackageSize = int.Parse(value);
                             break;
                     }
                 }
@@ -882,11 +894,11 @@ namespace Error
         {
             key = null;
             value = null;
-            line.Trim();
+            line = line.Trim();
 
             if (!line.StartsWith("#")) return false;
 
-            line.Remove(0, 1); // remove #
+            line = line.Remove(0, 1); // remove #
             var parts = line.Split('=');
             if (parts.Length == 0) return false;
             key = parts[0];
@@ -896,7 +908,6 @@ namespace Error
         }
         void ReadOrders()
         {
-            ReadOrdersFromTextFile();
             OrderManager = new OrderManager();
 
             Order order = new Order();
@@ -950,9 +961,9 @@ namespace Error
             OrderManager.Add(order, o, oo, ooo ,oooo, ooooo);
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
         }
-        void ReadOrdersFromTextFile()
+        void ReadOrdersFromTextFile(string filename)
         {
-            string[] textLines = Error.IO.ReadAllLines(@"InputFiles/orders.txt");
+            string[] textLines = Error.IO.ReadAllLines(filename);
             Order order = new Order();
 
             foreach (string line in textLines)
@@ -973,7 +984,7 @@ namespace Error
                             order.Customer = value;
                             break;
                         case "SHIPPINGDATE":
-                            order.RequestedShippingDate = DateTime.Parse(value);
+                            order.RequestedShippingDate = DateTime.Parse(value,fin);
                             break;
                         case "LINE":
                             if (order.Lines == null)

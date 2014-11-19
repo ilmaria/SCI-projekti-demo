@@ -40,7 +40,7 @@ namespace Error
         }
         public bool IsTraversable(Vector3 position)
         {
-            BoundingBox b = new BoundingBox(position - new Vector3(0.5f, 0.5f, 0f), position + new Vector3(0.5f, 0.5f, 2f));
+            BoundingBox b = new BoundingBox(position - new Vector3(0.1f, 0.1f, 0f), position + new Vector3(0.1f, 0.1f, 1.8f));
             if (!BoundingBox.Intersects(b)) return false;
 
             foreach (var obstacle in Obstacles)
@@ -107,8 +107,7 @@ namespace Error
             var keys = GetByProductCode(productCode);
             keys = (from key in keys where GetProduct(key).Amount >= amount select key).ToList();
 
-            // TODO
-            //if(items.Count == 0) tuotetta ei varastossa
+            if (keys.Count == 0) return App.INVALID_KEY;
 
             // find nearest product
             int minIndex = 0;
@@ -141,14 +140,23 @@ namespace Error
             BinaryHeap<Utils.TFloat<int>> sortedKeys = new BinaryHeap<Utils.TFloat<int>>(_products.Count);
             foreach (var kvp in _products)
             {
-                float score = Math.Min(Utils.LevenshteinScore(txt, kvp.Value.Code),
-                    Math.Min(Utils.LevenshteinScore(txt, kvp.Value.Description),
-                    Math.Min(Utils.LevenshteinScore(txt, kvp.Value.PalletCode),
-                    Utils.LevenshteinScore(txt, kvp.Value.ShelfCode))));
+                // tuotetta kuvaavat hakusanat
+                // description hajoitetaan sanoihin, koska muuten sopivalla pituudella on liikaa merkitystä
+                // sisältöön verrattuna
+                var words = Utils.Combine<string[]>(
+                    kvp.Value.Description.Split(' '),
+                    new[] { kvp.Value.Code, kvp.Value.PalletCode, kvp.Value.ShelfCode });
+
+                // lasketaan osuvuus
+                float score = 100000f;
+                foreach (string s in words)
+                    score = Math.Min(score, Utils.LevenshteinScore(txt, s));
+
+                // järjestetään
                 sortedKeys.Add(new Utils.TFloat<int> { Value = kvp.Key, Float = score });
             }
-            List<int> result = new List<int>(maxResultCount);
-            for (int i = 0; i < maxResultCount; i++)
+            List<int> result = new List<int>(sortedKeys.Count);
+            while (sortedKeys.Count > 0)
             {
                 result.Add(sortedKeys.Remove().Value);
             }

@@ -178,8 +178,8 @@ namespace Error
             Order order = App.Instance.CollectingData.CurrentOrder;
             if (App.Instance.CollectingData.ShowOrderInfo && order != null)
             {
-                App.SpriteBatch.DrawStringCentered(App.Font, order.Customer, new Rectangle(0, 0, 240, 50), Color.Black, 0.5f);
-                App.SpriteBatch.DrawStringCentered(App.Font, order.RequestedShippingDate.ToString(), new Rectangle(240, 0, 240, 50), Color.Black, 0.5f);
+                App.SpriteBatch.DrawStringCentered(App.Font, order.Customer, new Rectangle(0, 0, 240, 50), UI.ForegroundColor, UI.SmallTextScale);
+                App.SpriteBatch.DrawStringCentered(App.Font, order.RequestedShippingDate.ToString(), new Rectangle(240, 0, 240, 50), UI.ForegroundColor, UI.SmallTextScale);
             }
             OrderLine line = App.Instance.CollectingData.CurrentLine;
             Product product = App.Instance.Storage.GetProduct(App.Instance.CollectingData.CurrentProductKey);
@@ -191,7 +191,7 @@ namespace Error
                 App.SpriteBatch.DrawStringCentered(App.Font, product.Description, new Rectangle(40, 100, 400, 100), Color.Black, 1f);
                 App.SpriteBatch.DrawStringCentered(App.Font, line.Amount + " kpl, " + line.Amount / product.PackageSize + " pakettia", new Rectangle(40, 200, 400, 100), Color.Black, 1f);
                 App.SpriteBatch.DrawStringCentered(App.Font, "Tuotekoodi: " + product.Code, new Rectangle(40, 300, 400, 100), Color.Black, 1f);
-                App.SpriteBatch.DrawStringCentered(App.Font, "Hyllypaikka: " + product.ShelfCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
+                App.SpriteBatch.DrawStringCentered(App.Font, "Lavapaikka: " + product.PalletCode, new Rectangle(40, 400, 400, 100), Color.Black, 1f);
             }
             App.SpriteBatch.End();
             base.Draw();
