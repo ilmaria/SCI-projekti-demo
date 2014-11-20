@@ -62,6 +62,7 @@ namespace Error
         public OrderManager OrderManager { get; private set; }
         public Storage Storage { get; private set; }
         public CollectingData CollectingData { get; private set; }
+        public IsolatedStorageSettings SavedData { get; private set; }
 
         GraphicsDeviceManager graphics;
         Stack<Screen> navigationStack;
@@ -468,12 +469,20 @@ namespace Error
             //showOrdersScreen.Add(infoButton);
         }
         void AppDeactivated(object sender, DeactivatedEventArgs e)
-        { 
-        
+        {
+            // ei toimi...
+            SavedData["Storage"] = Storage;
+            SavedData["OrderManager"] = OrderManager;
+            SavedData["CollectingData"] = CollectingData;
+            SavedData["IsDataImported"] = IsDataImported;
         }
         void AppActivated(object sender, ActivatedEventArgs e)
         {
-
+            // ei toimi...
+            Storage = (Storage)SavedData["Storage"];
+            OrderManager = (OrderManager)SavedData["OrderManager"];
+            CollectingData = (CollectingData)SavedData["CollectingData"];
+            IsDataImported = (bool)SavedData["IsDataImported"];
         }
         void UpdateMapTexture(Map map, List<Point> path, params Point[] highlights)
         {
