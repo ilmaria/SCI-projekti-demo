@@ -23,10 +23,7 @@ using System.Globalization;
 //henri: varaston tietorakenne, järjestyksen optimointi
 
 /* TODO
- esteet, jotka eivät tuotteita
- lista mahdollisista hyllypaikoista varastossa tuotteiden sijaintien optimointia varten
- * tekstihakuun myös tilaukset? haku ja muutkin 4 alarivin toimintoa myös aloitussivulle? hakutulosten scrollaaminen,
- * nyt osa ei näy
+ * tekstihakuun myös tilaukset?
  * entäs kun kesken keräyksen joku on napannut viimeiset varastosta?
  * optimointi niin, että kaikki työntekijöt eivät ruuhkassa samassa läjässä
  * keräily monesta sijainnista kun yhdessä ei tarpeeksi
@@ -35,9 +32,7 @@ using System.Globalization;
 */
 
 //isoja puuttuvia ominaisuuksia:
-//datan tuonti
 //Hyllyjen optimaalinen täyttö tuotteilla
-// ui osia
 // tilausten välinen järjestely
 
 // varastopaikka = shelfCode = 1005
@@ -62,7 +57,6 @@ namespace Error
         public OrderManager OrderManager { get; private set; }
         public Storage Storage { get; private set; }
         public CollectingData CollectingData { get; private set; }
-        public IsolatedStorageSettings SavedData { get; private set; }
 
         GraphicsDeviceManager graphics;
         Stack<Screen> navigationStack;
@@ -78,17 +72,13 @@ namespace Error
         // tästä eteenpäin loputkin kentät voisi siivota
         Color[] mapColors;// --> map-luokkaan
         Texture2D mapTexture;
-        // pakkauspöydän sijainti fyysisissä koordinaateissa (ei A* - koordinaateissa)
-        //Vector3 _packingPosition;// --> storage-luokkaan
         int lastKey = 0;
-
         static App _app;
         public static App Instance
         {
             get { return _app; }
         }
         CultureInfo fin = new CultureInfo("fi-FI");
-
         public const int INVALID_KEY = int.MinValue;
 
         #endregion
@@ -191,6 +181,7 @@ namespace Error
                 }
                 else
                 {
+                    Save("autosave");
                     this.Exit();
                 }
             }
@@ -496,20 +487,10 @@ namespace Error
         }
         void AppDeactivated(object sender, DeactivatedEventArgs e)
         {
-            // ei toimi...
-            SavedData["Storage"] = Storage;
-            SavedData["OrderManager"] = OrderManager;
-            SavedData["CollectingData"] = CollectingData;
-            SavedData["IsDataImported"] = IsDataImported;
             Save("autosave");
         }
         void AppActivated(object sender, ActivatedEventArgs e)
         {
-            // ei toimi...
-            Storage = (Storage)SavedData["Storage"];
-            OrderManager = (OrderManager)SavedData["OrderManager"];
-            CollectingData = (CollectingData)SavedData["CollectingData"];
-            IsDataImported = (bool)SavedData["IsDataImported"];
         }
         void Save(string filename)
         {
@@ -645,7 +626,6 @@ namespace Error
                                 o.RequestedShippingDate.Date.ToShortDateString(),
                                 o.Lines.Count.ToString() + " riviä" 
                             },
-                    // mitähän tässä tapahtuu? minkä tahansa tilauksen klikkaaminen näyttää saman tilauksen tiedot
                     delegate() { showOrderInfo(o); },
                     index.ToString(),
                     false);
@@ -674,6 +654,14 @@ namespace Error
                 {
                     currentLocation = CollectingData.CurrentLocation_AStar;
                 }
+
+                // vanhat täytyy poistaa
+                var itemstoremove = (from i in orderInfoScreen.ClickableElements where (i.Value as ListItem != null) select i.Key).ToList();
+                foreach (var key in itemstoremove)
+                {
+                    orderInfoScreen.ClickableElements.Remove(key);
+                }
+                
                 foreach (var line in order.Lines)
                 {
                     var item = new ListItem(
@@ -770,35 +758,6 @@ namespace Error
             int key = lastKey;
             lastKey++;
             return key;
-        }
-        Storage ReadStorageData()
-        {
-            // esimerkki ja testausta varten
-            Storage storage = new Storage(100);
-            for (int i = 0; i < 200; i++)
-            {
-                var product = new Product();
-                product.Code = "asd" + (i % 36).ToString();
-                product.Description = "ruuvi";
-                product.ShelfCode = Random.Next(43).ToString(); // hyllypaikka, jossa monta lavaa
-                product.Amount = 20000;
-                product.PackageSize = 150;
-                product.InsertionDate = DateTime.Now;
-                product.ModifiedDate = DateTime.Now;
-                product.ProductionDate = new DateTime(2014, 7, 15);
-
-                // tuotteen fyysinen sijainti metreissä
-                float x = Random.Next(64);
-                float y = Random.Next(64);
-                float z = 0f;
-                float width = Random.Next(4);// yleensä eurolavan koko
-                float height = 1f;
-                product.BoundingBox = new BoundingBox(new Vector3(x, y, z), new Vector3(x + width, y + width, z + height));
-
-                storage.AddProduct(product);
-            }
-            storage.CreateMap(1f);
-            return storage;
         }
         Storage ReadMapFromTextFile(string[] textLines)
         {
@@ -978,61 +937,6 @@ namespace Error
                 value = parts[1];
             return true;
         }
-        void ReadOrders()
-        {
-            OrderManager = new OrderManager();
-
-            Order order = new Order();
-            order.Customer = "Oy Asiakas Ab 1";
-            order.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            order.Lines = new List<OrderLine>(2);
-            order.Lines.Add(new OrderLine { ProductCode = "asd" + "27", Amount = 473 });
-            order.Lines.Add(new OrderLine { ProductCode = "asd" + "35", Amount = 3473 });
-            order.Lines.Add(new OrderLine { ProductCode = "asd" + "5", Amount = 3373 });
-
-            Order o = new Order();
-            o.Customer = "Oy Ab 2";
-            o.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            o.Lines = new List<OrderLine>(2);
-            o.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            o.Lines.Add(new OrderLine { ProductCode = "asd" + "8", Amount = 3473 + Random.Next(60000) });
-            o.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
-
-            Order oo = new Order();
-            oo.Customer = "asgfdhgfjk 3";
-            oo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            oo.Lines = new List<OrderLine>(2);
-            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "3", Amount = 3473 + Random.Next(50000) });
-            oo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
-
-            Order ooo = new Order();
-            ooo.Customer = "lknb nm,lkjk 4";
-            ooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            ooo.Lines = new List<OrderLine>(2);
-            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
-            ooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
-
-            Order oooo = new Order();
-            oooo.Customer = "yritys5";
-            oooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            oooo.Lines = new List<OrderLine>(2);
-            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
-            oooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
-
-            Order ooooo = new Order();
-            ooooo.Customer = "yritys6";
-            ooooo.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
-            ooooo.Lines = new List<OrderLine>(2);
-            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
-            ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
-
-            OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
-            OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
-        }
         void ReadOrdersFromTextFile(string[] textLines)
         {
             Order order = new Order();
@@ -1150,9 +1054,6 @@ namespace Error
             }
         }
 
-        public Vector3 CurrentLocation;
-        public Vector3 CurrentDestination;
-        public Vector3 DropOffPoint;
         // samat eri koordinaateissa
         public Point CurrentLocation_AStar;
         public Point CurrentDestination_AStar;
