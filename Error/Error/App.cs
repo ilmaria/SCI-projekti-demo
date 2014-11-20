@@ -235,15 +235,41 @@ namespace Error
             {
                 Text = "Lue data",
                 Name = "readData",
-                TouchArea = new Rectangle(60, 400, 360, 90),
+                TouchArea = new Rectangle(60, 300, 360, 90),
                 Click = delegate()
                 {
-                    Storage = ReadMapFromTextFile(@"InputFiles/map.txt");
-                    ReadProductsFromTextFile(Storage, @"InputFiles/products.txt");
+                    Storage = ReadMapFromTextFile(Error.IO.ReadAllLines(@"InputFiles/map.txt"));
+                    ReadProductsFromTextFile(Storage, Error.IO.ReadAllLines(@"InputFiles/products.txt"));
                     OrderManager = new OrderManager();
-                    ReadOrdersFromTextFile(@"InputFiles/orders.txt");
+                    ReadOrdersFromTextFile(Error.IO.ReadAllLines(@"InputFiles/orders.txt"));
                     IsDataImported = true;
                     ShowMessage("Data luettu");
+                }
+            };
+            // lue tallennettu data
+            Button loadButton = new Button
+            {
+                Text = "Avaa",
+                Name = "load",
+                TouchArea = new Rectangle(60, 500, 180, 90),
+                Click = delegate()
+                {
+                    Error.IO.ShowKeyboard("tiedoston nimi", "", "");
+                    string filename = Error.IO.GetTypedText();
+                    Load(filename);
+                }
+            };
+            // tallenna data
+            Button saveButton = new Button
+            {
+                Text = "Tallenna",
+                Name = "save",
+                TouchArea = new Rectangle(240, 500, 180, 90),
+                Click = delegate()
+                {
+                    Error.IO.ShowKeyboard("tiedoston nimi", "", "");
+                    string filename = Error.IO.GetTypedText();
+                    Save(filename);
                 }
             };
             Button nextLineButton = new Button
@@ -410,7 +436,7 @@ namespace Error
             {
                 Text = "Aloita keräily",
                 Name = "startCollecting",
-                TouchArea = new Rectangle(60, 500, 360, 90),
+                TouchArea = new Rectangle(60, 400, 360, 90),
                 Click = delegate()
                 {
                     if (!IsDataImported)
@@ -461,7 +487,7 @@ namespace Error
             };
             #endregion
 
-            startScreen.Add(readDataButton, startCollectingButton, searchButton, showOrdersButton);
+            startScreen.Add(readDataButton, startCollectingButton, searchButton, showOrdersButton, loadButton,saveButton);
             collectingScreen.Add(nextLineButton, mapButton, searchButton,
                 infoButton, changeButton, nextOrderButton,
                 packOrderButton, collectedButton, packedButton);
@@ -475,6 +501,7 @@ namespace Error
             SavedData["OrderManager"] = OrderManager;
             SavedData["CollectingData"] = CollectingData;
             SavedData["IsDataImported"] = IsDataImported;
+            Save("autosave");
         }
         void AppActivated(object sender, ActivatedEventArgs e)
         {
@@ -483,6 +510,25 @@ namespace Error
             OrderManager = (OrderManager)SavedData["OrderManager"];
             CollectingData = (CollectingData)SavedData["CollectingData"];
             IsDataImported = (bool)SavedData["IsDataImported"];
+        }
+        void Save(string filename)
+        {
+            var orderdat = WriteOrdersToTextFile(OrderManager.Orders);
+            Error.IO.SaveText(filename + "_orders", orderdat);
+            //todo producst
+            ShowMessage("Data tallennettu");
+        }
+        void Load(string filename)
+        {
+            // kartta ei muutu
+            Storage = ReadMapFromTextFile(Error.IO.ReadAllLines(@"InputFiles/map.txt"));
+
+            // tilaukset ja varastossa olevat asiat muuttuu
+            ReadProductsFromTextFile(Storage, Error.IO.LoadText(filename + "_products"));
+            OrderManager = new OrderManager();
+            ReadOrdersFromTextFile(Error.IO.LoadText(filename + "_orders"));
+            IsDataImported = true;
+            ShowMessage("Data luettu");
         }
         void UpdateMapTexture(Map map, List<Point> path, params Point[] highlights)
         {
@@ -753,10 +799,9 @@ namespace Error
             storage.CreateMap(1f);
             return storage;
         }
-        Storage ReadMapFromTextFile(string filename)
+        Storage ReadMapFromTextFile(string[] textLines)
         {
             float scale = 0.001f;
-            string[] textLines = Error.IO.ReadAllLines(filename);
             Storage storage = new Storage(0);
             string[] args;
             float x, y, z, dx, dy, dz;
@@ -839,9 +884,8 @@ namespace Error
             storage.PackingLocation_AStar = storage.Map.PhysicalToInternalCoordinates(packingPosition);
             return storage;
         }
-        void ReadProductsFromTextFile(Storage storage, string filename)
+        void ReadProductsFromTextFile(Storage storage, string[] textLines)
         {
-            string[] textLines = Error.IO.ReadAllLines(filename);
             Product product = new Product(); // assign value only to suppress compiler error
 
             foreach (string line in textLines)
@@ -970,9 +1014,8 @@ namespace Error
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
         }
-        void ReadOrdersFromTextFile(string filename)
+        void ReadOrdersFromTextFile(string[] textLines)
         {
-            string[] textLines = Error.IO.ReadAllLines(filename);
             Order order = new Order();
 
             foreach (string line in textLines)
@@ -1001,9 +1044,29 @@ namespace Error
                             var parts = value.Split(' ');
                             order.Lines.Add(new OrderLine { ProductCode = parts[0], Amount = int.Parse(parts[1]) });
                             break;
+                        case "STATE":
+                            order.State = uint.Parse(value);
+                            break;
                     }
                 }
             }
+        }
+        string[] WriteOrdersToTextFile(List<Order> orders)
+        {
+            List<string> lines = new List<string>(10 * orders.Count);
+            foreach (Order o in orders)
+            {
+                lines.Add("#BEGIN_ORDER");
+                lines.Add("#CUSTOMER=" + o.Customer);
+                lines.Add("#SHIPPINGDATE=" + o.RequestedShippingDate.ToString(fin));
+                lines.Add("#STATE=" + o.State.ToString());
+                foreach (var ln in o.Lines)
+                {
+                    lines.Add("#LINE=" + ln.ProductCode + " " + ln.Amount.ToString());
+                }
+                lines.Add("#END_ORDER");
+            }
+            return lines.ToArray();
         }
         public void OptimizeOrder(Order order, Vector3 startPosition, Vector3 dropoffPosition)
         {

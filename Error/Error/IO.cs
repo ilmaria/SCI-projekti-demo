@@ -40,7 +40,7 @@ namespace Error
             }
             return text.Split('\n');
         }
-        public void SaveText(string fileName, string[] lines)
+        public static void SaveText(string fileName, string[] lines)
         {
             try
             {
@@ -60,7 +60,7 @@ namespace Error
             }
             catch { }
         }
-        public string[] LoadText(string fileName)
+        public static string[] LoadText(string fileName)
         {
             try
             {
