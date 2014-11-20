@@ -515,7 +515,8 @@ namespace Error
         {
             var orderdat = WriteOrdersToTextFile(OrderManager.Orders);
             Error.IO.SaveText(filename + "_orders", orderdat);
-            //todo producst
+            var pdat = WriteProductsToTextFile(Storage._____products);
+            Error.IO.SaveText(filename + "_products", pdat);
             ShowMessage("Data tallennettu");
         }
         void Load(string filename)
@@ -942,6 +943,24 @@ namespace Error
                     }
                 }
             }
+        }
+        string[] WriteProductsToTextFile(Dictionary<int,Product> products)
+        {
+            List<string> lines = new List<string>(10 * products.Count);
+            foreach (var p in products.Values)
+            {
+                lines.Add("#BEGIN");
+                lines.Add("#NAME=" + p.Description);
+                lines.Add("#PRODUCTCODE=" + p.Code);
+                lines.Add("#SHELFCODE=" + p.ShelfCode);
+                lines.Add("#PALLETCODE=" + p.PalletCode);
+                lines.Add("#NOTES=" + p.ExtraNotes);
+                lines.Add("#AMOUNT=" + p.Amount.ToString());
+                lines.Add("#PRODUCTIONDATE=" + p.ProductionDate.ToString(fin));
+                lines.Add("#PACKAGESIZE=" + p.PackageSize.ToString());
+                lines.Add("#END");
+            }
+            return lines.ToArray();
         }
         static bool ParseLine(string line, out string key, out string value)
         {

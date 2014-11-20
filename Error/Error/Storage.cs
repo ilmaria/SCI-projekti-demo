@@ -16,6 +16,8 @@ namespace Error
         Dictionary<int, Product> _products;
         public List<Pallet> Pallets;
 
+        public Dictionary<int, Product> _____products { get { return _products; } }
+
         public Storage(int count)
         {
             Obstacles = new List<BoundingBox>(0);
