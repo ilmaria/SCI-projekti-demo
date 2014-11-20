@@ -90,7 +90,7 @@ namespace Error
         CultureInfo fin = new CultureInfo("fi-FI");
 
         public const int INVALID_KEY = int.MinValue;
-        
+
         #endregion
 
         public App()
@@ -130,7 +130,7 @@ namespace Error
         /// </summary>
         protected override void Initialize()
         {
-            TouchPanel.EnabledGestures = 
+            TouchPanel.EnabledGestures =
                 GestureType.FreeDrag |
                 GestureType.Tap |
                 GestureType.Flick;
@@ -290,7 +290,7 @@ namespace Error
                     CollectingData.ShowOrderInfo = false;
                     CollectingData.CurrentLocation_AStar = Storage.PackingLocation_AStar;
                     // check if there are orders to collect
-                    if(OrderManager.IsOrderAvailable())
+                    if (OrderManager.IsOrderAvailable())
                     {
                         collectingScreen.ClickableElements["nextOrder"].Visible = true;
                         collectingScreen.ClickableElements["packed"].Visible = false;
@@ -318,7 +318,7 @@ namespace Error
                     {
                         collectingScreen.ClickableElements["packOrder"].Visible = true;
                         // check if there are orders to collect
-                        if(OrderManager.IsOrderAvailable())
+                        if (OrderManager.IsOrderAvailable())
                         {
                             collectingScreen.ClickableElements["nextOrder"].Visible = true;
                         }
@@ -362,7 +362,7 @@ namespace Error
                 Text = "tiedot",
                 Icon = listIcon,
                 TouchArea = new Rectangle(120, 680, 120, 120),
-                Click = delegate() 
+                Click = delegate()
                 {
                     if (!IsDataImported)
                     {
@@ -421,7 +421,7 @@ namespace Error
                     Message = null;
                     navigationStack.Push(collectingScreen);
 
-                    if(!OrderManager.IsOrderAvailable())
+                    if (!OrderManager.IsOrderAvailable())
                     {
                         ShowMessage("Ei kerättävissä olevia tilauksia");
                         return;
@@ -461,7 +461,7 @@ namespace Error
             };
             #endregion
 
-            startScreen.Add(readDataButton, startCollectingButton, searchButton,showOrdersButton);
+            startScreen.Add(readDataButton, startCollectingButton, searchButton, showOrdersButton);
             collectingScreen.Add(nextLineButton, mapButton, searchButton,
                 infoButton, changeButton, nextOrderButton,
                 packOrderButton, collectedButton, packedButton);
@@ -500,7 +500,7 @@ namespace Error
                 }
             }
 
-            if(path != null)
+            if (path != null)
             {
                 for (int i = 0; i < path.Count; i++)
                 {
@@ -648,7 +648,7 @@ namespace Error
                                     //"Lisätiedot: " + product.ExtraNotes
                                     /*"Sijainti: " + product.BoundingBox*/
                                 },
-                        delegate() {},
+                        delegate() { },
                         index.ToString(),
                         false);
 
@@ -676,7 +676,7 @@ namespace Error
         public void showProductInfo(Product product)
         {
             if (navigationStack.Contains(productInfoScreen))
-            { 
+            {
                 while (navigationStack.Pop() != productInfoScreen) { continue; }
             }
             navigationStack.Push(productInfoScreen);
@@ -731,7 +731,7 @@ namespace Error
             for (int i = 0; i < 200; i++)
             {
                 var product = new Product();
-                product.Code = "asd"+(i%36).ToString();
+                product.Code = "asd" + (i % 36).ToString();
                 product.Description = "ruuvi";
                 product.ShelfCode = Random.Next(43).ToString(); // hyllypaikka, jossa monta lavaa
                 product.Amount = 20000;
@@ -932,7 +932,7 @@ namespace Error
             o.RequestedShippingDate = DateTime.Today + TimeSpan.FromDays(Random.Next(-3, 10));
             o.Lines = new List<OrderLine>(2);
             o.Lines.Add(new OrderLine { ProductCode = "asd" + "14", Amount = 473 });
-            o.Lines.Add(new OrderLine { ProductCode = "asd" + "8", Amount = 3473  + Random.Next(60000)});
+            o.Lines.Add(new OrderLine { ProductCode = "asd" + "8", Amount = 3473 + Random.Next(60000) });
             o.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
 
             Order oo = new Order();
@@ -967,7 +967,7 @@ namespace Error
             ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "2", Amount = 3473 + Random.Next(40000) });
             ooooo.Lines.Add(new OrderLine { ProductCode = "asd" + "15", Amount = 373 });
 
-            OrderManager.Add(order, o, oo, ooo ,oooo, ooooo);
+            OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
             OrderManager.Add(order, o, oo, ooo, oooo, ooooo);
         }
         void ReadOrdersFromTextFile(string filename)
@@ -993,7 +993,7 @@ namespace Error
                             order.Customer = value;
                             break;
                         case "SHIPPINGDATE":
-                            order.RequestedShippingDate = DateTime.Parse(value,fin);
+                            order.RequestedShippingDate = DateTime.Parse(value, fin);
                             break;
                         case "LINE":
                             if (order.Lines == null)
@@ -1047,41 +1047,6 @@ namespace Error
             Message = message;
             navigationStack.Clear();
             navigationStack.Push(startScreen);
-        }
-        public void Save(string fileName)
-        {
-            try
-            {
-                IsolatedStorageFile storageFile = IsolatedStorageFile.GetUserStoreForApplication();
-                IsolatedStorageFileStream fs = storageFile.OpenFile(fileName, System.IO.FileMode.OpenOrCreate);
-                StreamWriter sw = new StreamWriter(fs);
-
-                sw.WriteLine(DateTime.Now.ToString());
-
-                sw.Close();
-                fs.Close();
-
-            }
-            catch { }
-        }
-        public void Load(string fileName)
-        {
-            try
-            {
-                IsolatedStorageFile storageFile = IsolatedStorageFile.GetUserStoreForApplication();
-                if (storageFile.FileExists(fileName))
-                {
-
-                    IsolatedStorageFileStream fs = storageFile.OpenFile(fileName, System.IO.FileMode.Open);
-                    StreamReader sr = new StreamReader(fs);
-
-                    DateTime time = DateTime.Parse(sr.ReadLine());
-
-                    sr.Close();
-                    fs.Close();
-                }
-            }
-            catch { }
         }
     }
 
