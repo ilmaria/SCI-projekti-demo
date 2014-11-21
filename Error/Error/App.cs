@@ -443,10 +443,15 @@ namespace Error
                         ShowMessage("Ei kerättävissä olevia tilauksia");
                         return;
                     }
+                    //Error.IO.ShowKeyboard("numero","","");
+                    //int n = int.Parse(Error.IO.GetTypedText());
+                    //var order = OrderManager.Orders[n];
                     CollectingData = new CollectingData();
                     CollectingData.CurrentLocation_AStar = Storage.PackingLocation_AStar;
-                    CollectingData.SetOrder(
-                        OrderManager.GetNextToCollect(
+                    //OptimizeOrder(order, Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar),
+                    //    Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar));
+                    //CollectingData.SetOrder(order);
+                        CollectingData.SetOrder(OrderManager.GetNextToCollect(
                         Storage.Map.InternalToPhysicalCoordinates(CollectingData.CurrentLocation_AStar),
                         Storage.Map.InternalToPhysicalCoordinates(Storage.PackingLocation_AStar)));
 
